@@ -4,11 +4,34 @@ import glob
 import SILVA
 from DiversityIndex import DiversityIndexRunner
 from Pyro import Pyro, PyroSampler
-from DF import DF, DFWriter
+from utils.versatile_open import versatile_open_func_wrap
 
 ecoli_map = SILVA.Ecoli1542_SILVA100
-
 subsample_sizes = [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120]
+di_runner = DiversityIndexRunner()
+
+@versatile_open_func_wrap([0],['filename'])
+def main(filename, options, f):
+	print >> sys.stderr, "processing", filename
+	pyro = Pyro(os.path.basename(filename), filename, rename_dups=options.rename_dups)
+	sampler = PyroSampler(pyro)
+	for se in subsample_sizes:
+		if se > pyro.nseq:
+			break
+		for iter in xrange(options.iterations):
+			print >> sys.stderr, "subsample size {0}, iter {1}".format(se, iter)
+			df = sampler.subsample(se)
+			di = di_runner.run(df, method='Simpson', threshold=0)
+			f.write("{name},{size},{di}\n".format(\
+					name=pyro.name,\
+					size=se,\
+					di=",".join(str(di[i]) for i in ecoli_map[ecoli_lo:ecoli_hi])))
+	# calc & write the real di
+	df = pyro.make_DF()
+	di = di_runner.run(df, method='Simpson', threshold=0)
+	f.write("{name},real,{di}\n".format(\
+			name=pyro.name,\
+			di=",".join(str(di[i]) for i in ecoli_map[ecoli_lo:ecoli_hi])))
 
 if __name__ == "__main__":
 	from optparse import OptionParser
@@ -28,28 +51,7 @@ if __name__ == "__main__":
 	ecoli_hi = int(ecoli_hi)
 
 	f = open(output, 'w')
-	w = DFWriter(f)
-	for file in glob.iglob(pattern):
-		print >> sys.stderr, "processing", file
-		pyro = Pyro(os.path.basename(file), file, rename_dups=options.rename_dups)
-		sampler = PyroSampler(pyro)
-		di_runner = DiversityIndexRunner()
-		for se in subsample_sizes:
-			if se > pyro.nseq:
-				break
-			for iter in xrange(options.iterations):
-				print >> sys.stderr, "subsample size {0}, iter {1}".format(se, iter)
-				df = sampler.subsample(se)
-				di = di_runner.run(df, method='Simpson', threshold=0)
-				f.write("{name},{size},{di}\n".format(\
-						name=pyro.name,\
-						size=se,\
-						di=",".join(str(di[i]) for i in ecoli_map[ecoli_lo:ecoli_hi])))
-		# calc & write the real di
-		df = pyro.make_DF()
-		di = di_runner.run(df, method='Simpson', threshold=0)
-		f.write("{name},real,{di}\n".format(\
-				name=pyro.name,\
-				di=",".join(str(di[i]) for i in ecoli_map[ecoli_lo:ecoli_hi])))
+	for filename in glob.iglob(pattern):
+		main(filename, options, f)
 	f.close()
 
