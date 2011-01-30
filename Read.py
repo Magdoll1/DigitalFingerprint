@@ -1,5 +1,5 @@
-import SILVA2
-EcoliMap = SILVA2.Ecoli1542_SILVA100
+import SILVA
+EcoliMap = SILVA.Ecoli1542_SILVA100
 from utils import versatile_open
 open = versatile_open.versatile_open
 
@@ -104,7 +104,7 @@ class ReadsDict:
 import bisect
 import random
 import functools
-from Sampler2 import Sampler
+from Sampler import Sampler
 class ReadsSampler(Sampler):
 	def __init__(self, readdict):
 		self.readdict = readdict
