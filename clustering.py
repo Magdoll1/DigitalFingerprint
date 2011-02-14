@@ -79,6 +79,8 @@ class Cluster:
 		#_min_val = self._dist[_min_ind]
 		#i, j = find_index_in_condensed_array(_min_ind, self.m) # guaranteed i < j
 		# pop out trees[i], trees[j], merge them into a new one
+		size_i = len(self.trees[i].get_leaves())
+		size_j = len(self.trees[j].get_leaves())
 		t = tree.Tree()
 		t.add_edge((self.trees[i], 0, _min_val/2)) # (subtree-i, bootstrap=0, branch length=dist)
 		t.add_edge((self.trees[j], 0, _min_val/2)) 
@@ -100,7 +102,7 @@ class Cluster:
 		print self.df_list[j].vec[:,-3][1:]
 		print "new vec is now", self.X[i, ]
 		print "pos 0", self.X[i,0]
-		raw_input("PRESS ANY KEY")
+#		raw_input("PRESS ANY KEY")
 #		X = self.X.tolist()
 #		X.pop(j)
 #		self.X = np.array(X)
@@ -108,16 +110,22 @@ class Cluster:
 		# TODO: make this NOT dependent on hcluster...!
 #		self._dist = hcluster.pdist(self.X, 'euclidean')
 		
-		self._dist[j, :] = float("inf")
-		self._dist[:, j] = float("inf")
+#		self._dist[j, :] = float("inf")
+#		self._dist[:, j] = float("inf")
 		for k in xrange(self.m):
 			if k==i or k==j or self.trees[k] is None: continue
 			# method 1:
 			#d = math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:]))
 			# method 2:
-			d = self.df_list[i].get_vec_diff_sqsum(self.df_list[k])
+			#d = self.df_list[i].get_vec_diff_sqsum(self.df_list[k])
+			#method 3:
+			d = (self._dist[k, i] * size_i + self._dist[k, j] * size_j) / (size_i + size_j)
+			print >> sys.stderr, "using Euclidean dist: {0}, using vecdiff: {1}".format(\
+					math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:])), d)
 			self._dist[i, k] = d
 			self._dist[k, i] = d
+		self._dist[j, :] = float("inf")
+		self._dist[:, j] = float("inf")
 
 		print "dist is:",
 		print self._dist
@@ -151,7 +159,7 @@ if __name__ == "__main__":
 
 #	import temp_utils
 #	mask = temp_utils.create_threshold_mask_for_df_list(df_list, threshold=100)
-	mask = np.zeros(520, dtype=np.float)#mask = np.zeros(50000, dtype=np.float)
+	mask = np.zeros(50000, dtype=np.float)#mask = np.zeros(50000, dtype=np.float)
 
 	if options.ecoli_only:
 		mask[SILVA.Ecoli1542_SILVA100] = 1. # this sets to using ONLY E.coli positions
