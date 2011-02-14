@@ -7,13 +7,7 @@ from DiversityIndex import DiversityIndexRunner, SimpsonIndex, EntropyIndex
 """
 Modified hierarchical clustering using Digital Fingerprinting
 """
-#def dist(di_list):
-#	d = []
-#	n = len(di_list)
-#	for i in xrange(n-1):
-#		for j in xrange(i+1, n):
-#			d.append(math.sqrt((di_list[i] - di_list[j])**2))
-	
+# ------- obsolete pdist functions -----------
 def find_index_in_condensed_array_help(cur, length, i):
 	if cur < length:
 		return (i, cur+i+1)
@@ -22,7 +16,6 @@ def find_index_in_condensed_array_help(cur, length, i):
 
 def find_index_in_condensed_array(index, length):
 	return find_index_in_condensed_array_help(index, length-1, 0)
-
 
 class Cluster:
 	def __init__(self, df_list, **kwargs):
@@ -102,7 +95,6 @@ class Cluster:
 		print self.df_list[j].vec[:,-3][1:]
 		print "new vec is now", self.X[i, ]
 		print "pos 0", self.X[i,0]
-#		raw_input("PRESS ANY KEY")
 #		X = self.X.tolist()
 #		X.pop(j)
 #		self.X = np.array(X)
@@ -129,6 +121,7 @@ class Cluster:
 
 		print "dist is:",
 		print self._dist
+		raw_input("PRESS ANY KEY")
 	def run_till_end(self):
 		while len(self.trees) > 1:
 			try:
@@ -159,7 +152,7 @@ if __name__ == "__main__":
 
 #	import temp_utils
 #	mask = temp_utils.create_threshold_mask_for_df_list(df_list, threshold=100)
-	mask = np.zeros(50000, dtype=np.float)#mask = np.zeros(50000, dtype=np.float)
+	mask = np.zeros(520, dtype=np.float)#mask = np.zeros(50000, dtype=np.float)
 
 	if options.ecoli_only:
 		mask[SILVA.Ecoli1542_SILVA100] = 1. # this sets to using ONLY E.coli positions
