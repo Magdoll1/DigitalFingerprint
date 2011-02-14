@@ -1,14 +1,41 @@
+import os, sys
+import cPickle
+from Bio import SeqIO
 import SILVA
 EcoliMap = SILVA.Ecoli1542_SILVA100
 from utils import versatile_open
 open = versatile_open.versatile_open
+
+def remove_low_quality_for_matched(matches, read_count, phreds, min_phred_score, ditched_f=None):
+	"""
+	Remove any matches (and it's entries from {matches}, {read_count} and {phreds})
+	that have 1 or more positions with a superPhred score < {min_phred_score}
+
+	Returns 
+	  count         -- total number of reads removed
+	  count_unique  -- total number of unique reads removed
+	"""
+	count = count_unique = 0
+	kk = matches.keys()
+	for k in kk:
+		m = matches[k]
+		if any( x < min_phred_score for x in phreds[m.read.tostring()] ):
+			count += read_count[m.read.tostring()]
+			count_unique += 1
+			if ditched_f is not None:
+				ditched_f.write("@{id}\n{seq}\n+{id}\n{qual}\n".format( id=k, seq=m.read, \
+					qual=m.quality ))
+			del matches[k]
+			del read_count[m.read.tostring()]
+			del phreds[m.read.tostring()]
+	return count, count_unique
 
 class NotEcoliPositionError(Exception):
 	def __init__(self, value):
 		self.value = value
 
 class RefMap:
-	def __init__(self, gap_map_filename, aln_length):
+	def __init__(self, gap_map_filename, aln_length, fasta_filename=None):
 		"""
 		gap_map_filename --- which be of format per line:
 							{ref_seq_id}\t{comma-separated list of ungapped-to-gapped positions}
@@ -19,6 +46,9 @@ class RefMap:
 		self.gap_map = {}
 		self.aln_length = aln_length # full gapped alignment length, should be CONSTANT for all ref seqs!
 		self.read_gap_map()
+		if fasta_filename is not None:
+			self.fasta = SeqIO.to_dict(SeqIO.parse(open(fasta_filename), 'fasta'))
+			self.fasta_filename = fasta_filename
 
 	def read_gap_map(self):
 		f = open(self.gap_map_filename)
@@ -46,7 +76,7 @@ class Read:
 		self.phred = phred
 		self.ref_seq_id = ref_seq_id
 		self.offset = int(offset)
-		self.copy = 1
+		self.copy = copy
 
 from DF import DF
 class ReadDF(DF):
@@ -66,6 +96,22 @@ class ReadDF(DF):
 			gapped_pos = self.refmap.ungapped_to_gapped(read.ref_seq_id, read.offset + i)
 			DF.add_to_vec(self, nt=s, positions=[gapped_pos], counts=[read.copy if copy is None else copy])
 
+	def add_read_to_vec_using_ref(self, read):
+		"""
+		match is a BowTieMatch
+		instead of adding the match's seq itself...use the ref seq >____<
+		"""
+		i = read.offset
+		for p in self.refmap.gap_map[read.ref_seq_id][read.offset:(read.offset+len(read.seq))]:
+			s = self.refmap.fasta[read.ref_seq_id].seq[i]
+			if s=='U': s='T'
+			if s not in ('A','T','C','G'): s='N'
+			DF.add_to_vec(self, nt=s, positions=[p], counts=[read.copy])
+			i += 1
+			
+from Bio.Seq import Seq
+from Solexa_settings import MIN_PHRED_SCORE, BOWTIE_PHRED_OFFSET, BowTieMatch
+import numpy as np
 class ReadsDict:
 	def __init__(self, refmap):
 		self.M = {} # position --> list of Read objects
@@ -83,22 +129,74 @@ class ReadsDict:
 		Counts the total number of reads in M
 		"""
 		return sum(read.copy for read in self.__iter__())
-	
-	def read_bowtie_output(self, filename):
+
+	def special_read(self, bowtie_filename, inhouse_pattern):
+		import Solexa_process as sp
+		print >> sys.stderr, "readin bowtie"
+		matches2, read_count2, phreds2 = sp.gather_reads_BowTie(bowtie_filename)
+		sp.remove_low_quality_for_matched(matches2, read_count2, phreds2, MIN_PHRED_SCORE, sys.stderr)
+		print >> sys.stderr, "readin inhouse"
+		matches, read_count, phreds, unaligned = sp.Shelp.compress_identical_reads(inhouse_pattern)
+		sp.remove_low_quality_for_matched(matches, read_count, phreds, MIN_PHRED_SCORE, sys.stderr)
+		
+
+	def read_bowtie_match_pickle(self, filename):
+		"""
+		<filename> should be a pickle that unpickles to:
+ 		   matches, read_count, phreds
+		matches should be a list of (<seq id>, <bowtie match>)
+		and read_count should be a dict of seq --> count
+		"""
 		self.filenames.append(filename)
-		seq_matches = {}
-		f = open(filename)
-		for line in f:
-			id, strand, ref_seq_id, offset, seq = line.strip().split()
-			if seq in seq_matches:
-				seq_matches[seq].copy += 1
-			else:
-				seq_matches[seq] = Read(id, seq=seq, ref_seq_id=ref_seq_id, offset=offset)
-		f.close()
-		for seq, read in seq_matches.iteritems():
-			gapped_pos = self.refmap.ungapped_to_gapped(read.ref_seq_id, read.offset)
+		with open(filename) as f:
+			matches, read_count, phreds = cPickle.load(f)
+		print >> sys.stderr, "removing low quality reads with score < {0}".format(MIN_PHRED_SCORE)
+		remove_low_quality_for_matched(matches, read_count, phreds, MIN_PHRED_SCORE, None)
+		for id, m in matches.iteritems():
+			gapped_pos = self.refmap.ungapped_to_gapped(m.ref_seq_id, m.offset)
 			if gapped_pos not in self.M:
 				self.M[gapped_pos] = []
+			read = Read(id, seq=m.read.tostring(), ref_seq_id=m.ref_seq_id, offset=m.offset, \
+					copy=read_count[m.read.tostring()])
+			self.M[gapped_pos].append(read)
+
+	def read_bowtie_output(self, filename):
+		"""
+		Modeled after my old Solexa_process.gather_reads_BowTie
+
+		BowTie output file having fields:
+		0. read name     1. strand     2. ref name
+		3. 0-based offset (w.r.t + strand)     4.seq     5.quality string
+		7. # of reserved (ignore in most cases)   7. mismatch descriptors
+
+	    See http://bowtie-bio.sourceforge.net/manual.shtml#algn_out for output format.
+		"""
+		self.filenames.append(filename)
+		matches, read_count, phreds = {}, {}, {}
+		f = open(filename)
+		for line in f:
+			raw = line.strip().split()
+			if len(raw) == 5:
+				id, strand, ref_seq_id, offset, seq = raw
+				qual = [BOWTIE_PHRED_OFFSET] * len(seq) # pretend perfect quality
+			else:
+				id, strand, ref_seq_id, offset, seq, qual = raw[:6]
+				qual = [ord(x) - BOWTIE_PHRED_OFFSET for x in qual]
+			if seq in read_count:
+				read_count[seq] += 1
+				phreds[seq] += qual
+			else:
+				read_count[seq] = 1
+				phreds[seq] = np.array(qual)
+				matches[id] = BowTieMatch(id, strand, ref_seq_id, int(offset), Seq(seq), None, None)
+		print >> sys.stderr, "removing low quality reads with score < {0}".format(MIN_PHRED_SCORE)
+		remove_low_quality_for_matched(matches, read_count, phreds, MIN_PHRED_SCORE, None)
+		for id, m in matches.iteritems():
+			gapped_pos = self.refmap.ungapped_to_gapped(m.ref_seq_id, m.offset)
+			if gapped_pos not in self.M:
+				self.M[gapped_pos] = []
+			read = Read(id, seq=m.read.tostring(), ref_seq_id=m.ref_seq_id, offset=m.offset, \
+					copy=read_count[m.read.tostring()])
 			self.M[gapped_pos].append(read)
 
 import bisect

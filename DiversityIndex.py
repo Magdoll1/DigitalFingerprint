@@ -18,10 +18,12 @@ class SimpsonIndex(DiversityIndex):
 	def calc_index(df, threshold):
 		D = np.zeros(df.len, dtype=np.double)
 		for i in xrange(df.len):
-			_x = df.get_counts_at_pos(i, ignoreN=True)
-			n = sum(_x)
-			if n >= threshold and n > 1: 
-				D[i] = 1 - sum(s * (s - 1) for s in _x) * 1. / (n * (n-1))
+			_x = df.vec[:,i][1:]
+			#_x = df.get_counts_at_pos(i, ignoreN=True)
+#			n = sum(_x)
+#			if n >= threshold and n > 1: 
+#				D[i] = 1 - sum(s * (s - 1) for s in _x) * 1. / (n * (n-1))
+			D[i] = 1 - sum(s**2 for s in _x)
 		return D
 
 class EntropyIndex(DiversityIndex):

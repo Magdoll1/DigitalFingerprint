@@ -41,13 +41,10 @@ class Cluster:
 
 		self.X = np.zeros((self.m, self.n), dtype=np.double)
 		for i,df in enumerate(self.df_list):
+			df.normalized_vec()
 			di = self.runner.run(df, method=self.method, threshold=self.threshold)
 			self.X[i, :] = di	
-
-		# NEW: normalize vec!
-		for df in self.df_list:
-			print >> sys.stderr, "Normalizing vector for", df.name
-			df.normalized_vec()
+			print("self.X[{0}] is {1}".format(i, self.X[i,:]))
 
 		# calculate the initial distance matrix
 		#self._dist = hcluster.pdist(self.X, 'euclidean')
@@ -88,33 +85,42 @@ class Cluster:
 		self.trees[i] = t
 		self.trees[j] = None#self.trees.pop(j) # only do this if using pdist array
 		# NEW!!! instead of just adding df_list[j] to df_list[i], normalize the counts FIRST!!!
-		self.df_list[i] += self.df_list[j] # OLD way: just add
-		self.df_list[i].normalized_vec()
+#		self.df_list[i] += self.df_list[j] # OLD way: just add
+#		self.df_list[i].normalized_vec()
+		self.df_list[i].normalized_vec_add(self.df_list[j])
 		# TEMP: just turn it into ratios and average over two
 		#self.df_list[i].normalized_vec_add(self.df_list[j])
 		#self.df_list.pop(j) # only do this if using pdist-array
 		#self.m -= 1 # only do this if using pdist-array
 
+		print "before", self.X[i, ]
 		self.X[i] = self.runner.run(self.df_list[i], method=self.method, threshold=self.threshold)
-
+		print("merged {0} and {1}".format(i, j))
+		print self.df_list[i].vec[:,-3][1:],
+		print self.df_list[j].vec[:,-3][1:]
+		print "new vec is now", self.X[i, ]
+		print "pos 0", self.X[i,0]
+		raw_input("PRESS ANY KEY")
 #		X = self.X.tolist()
 #		X.pop(j)
 #		self.X = np.array(X)
 		# re-run distance calculation
 		# TODO: make this NOT dependent on hcluster...!
-		#self._dist = hcluster.pdist(self.X, 'euclidean')
+#		self._dist = hcluster.pdist(self.X, 'euclidean')
 		
 		self._dist[j, :] = float("inf")
 		self._dist[:, j] = float("inf")
 		for k in xrange(self.m):
 			if k==i or k==j or self.trees[k] is None: continue
 			# method 1:
-			d = math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:]))
+			#d = math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:]))
 			# method 2:
-			#d = self.df_list[i].get_vec_diff_sqsum(self.df_list[k])
+			d = self.df_list[i].get_vec_diff_sqsum(self.df_list[k])
 			self._dist[i, k] = d
 			self._dist[k, i] = d
 
+		print "dist is:",
+		print self._dist
 	def run_till_end(self):
 		while len(self.trees) > 1:
 			try:
@@ -135,7 +141,8 @@ if __name__ == "__main__":
 			])
 
 	options, args = parser.parse_args()
-	ecoli_range = eval(options.ecoli_range)  # note: 1-based
+	if options.ecoli_range is not None:
+		ecoli_range = eval(options.ecoli_range)  # note: 1-based
 
 #	mask = np.array(SILVA.DI_Simpson_Ecoli1542_SILVA100)
 	from DF import DFReader
@@ -144,24 +151,27 @@ if __name__ == "__main__":
 
 #	import temp_utils
 #	mask = temp_utils.create_threshold_mask_for_df_list(df_list, threshold=100)
-	mask = np.zeros(50000, dtype=np.float)
+	mask = np.zeros(520, dtype=np.float)#mask = np.zeros(50000, dtype=np.float)
 
 	if options.ecoli_only:
 		mask[SILVA.Ecoli1542_SILVA100] = 1. # this sets to using ONLY E.coli positions
 	else:
 		mask[:] = 1.
 
-	mask_lo = ecoli_map[ecoli_range[0]-1]	
-	mask_hi = ecoli_map[ecoli_range[1]-1]
-	
-	mask[:mask_lo] = 0.
-	mask[mask_hi+1:] = 0.
-
 	if options.ecoli_only:
+		mask_lo = ecoli_map[ecoli_range[0]-1]
+		mask_hi = ecoli_map[ecoli_range[1]-1]
+		mask[:mask_lo] = 0.
+		mask[mask_hi+1:] = 0.
 		print >> sys.stderr, "taking only positions from E.coli {0}({1})-{2}({3})".format(\
 				ecoli_range[0], mask_lo, ecoli_range[1], mask_hi)
 	else:
-		print >> sys.stderr, "taking all positions from {0}-{1}".format(mask_lo, mask_hi)
+		from Solexa_settings import L2
+		ecoli_map = filter(lambda i: L2[i]%1==0 and 358 <= L2[i] <= 514, xrange(520))
+		mask[:] = 0.
+		mask[ecoli_map] = 1.
+#		mask[:] = 1. # TODO: remove later
+		#print >> sys.stderr, "taking all positions from {0}-{1}".format(mask_lo, mask_hi)
 
 #	mask[:6427] = 0. # remove all locations < E.coli 358 (which is 6427)
 #	mask[11895:] = 0. # remove all locations > E.coli 514 (which is 11894)

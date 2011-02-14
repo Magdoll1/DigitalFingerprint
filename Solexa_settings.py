@@ -14,6 +14,9 @@ BowTieMatch = namedtuple('BowTieMatch', 'name strand ref_seq_id offset read qual
 SOLEXA_PHRED_OFFSET = 64
 BOWTIE_PHRED_OFFSET = 33
 
+NT_MAPPING = {'N':0, 'A':1, 'U':2, 'T':2, 'G':3, 'C':4}
+NT_GAPS = ('.', '-')
+
 MIN_PHRED_SCORE  = 10 # all reads containing at least 1 position with phred < this will be ditched
 BADPHRED_CUTOFF = 20 # bases with score lower than this won't count during # of mismatches
 

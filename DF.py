@@ -74,7 +74,7 @@ class DF(SeqVector):
 		Returns the sum of {squared of sum diffs} of two DFs
 		"""
 		#t = self.vec*1./self.get_compressed_vec(ignoreN) - other.vec*1./other.get_compressed_vec(ignoreN)
-		t = self.vec - other.vec
+		t = self.__seqvector.vec - other.__seqvector.vec
 		nt_ind = SeqVector.mapping['N'] if ignoreN else -1
 		result = 0
 		for j in xrange(self.len):
@@ -83,11 +83,12 @@ class DF(SeqVector):
 		return result
 
 	def normalized_vec(self, ignoreN=True):
-		self.vec = self.vec * 1. / self.get_compressed_vec(ignoreN)
+		self.__seqvector.vec = self.__seqvector.vec * 1. / self.get_compressed_vec(ignoreN)
 
 	def normalized_vec_add(self, other, ignoreN=True):
-		self.vec = self.vec * 0.5 / self.get_compressed_vec(ignoreN)
-		self.vec += other.vec * 0.5 / other.get_compressed_vec(ignoreN)
+		print "this is compressed vec", self.get_compressed_vec(ignoreN)
+		self.__seqvector.vec = self.__seqvector.vec * 0.5 / self.get_compressed_vec(ignoreN)
+		self.__seqvector.vec += other.__seqvector.vec * 0.5 / other.get_compressed_vec(ignoreN)
 
 	@property
 	def nonzero(self):
@@ -108,6 +109,9 @@ class DF(SeqVector):
 	@property
 	def vec(self):
 		return self.__seqvector.vec
+
+	def assign_vec(self, vec):
+		self.__seqvector.vec = vec
 
 
 class DFReader:

@@ -106,7 +106,7 @@ class SeqVector:
 		all nucleotide counts per position
 		Useful for looking at per-position depth of coverage.
 		"""
-		result = np.zeros(self.len, dtype=np.int)
+		result = np.zeros(self.len, dtype=np.float)
 		for i in xrange(self.len):
 			result[i] = sum(self.vec[:, i])
 			if ignoreN: result[i] -= self.vec[SeqVector.mapping['N'], i]
