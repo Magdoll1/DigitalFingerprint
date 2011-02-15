@@ -15,15 +15,16 @@ class DiversityIndex:
 
 class SimpsonIndex(DiversityIndex):
 	@staticmethod
-	def calc_index(df, threshold):
+	def calc_index(df, threshold, vec_pre_normalized, ignoreN):
 		D = np.zeros(df.len, dtype=np.double)
 		for i in xrange(df.len):
-			_x = df.vec[:,i][1:]
-			#_x = df.get_counts_at_pos(i, ignoreN=True)
-#			n = sum(_x)
-#			if n >= threshold and n > 1: 
-#				D[i] = 1 - sum(s * (s - 1) for s in _x) * 1. / (n * (n-1))
-			D[i] = 1 - sum(s**2 for s in _x)
+			_x = df.get_counts_at_pos(i, ignoreN)
+			if vec_pre_normalized: # vec is already in percentages
+				D[i] = 1 - sum(s**2 for s in _x)
+			else:
+				n = sum(_x)
+				if n >= threshold and n > 1: 
+					D[i] = 1 - sum(s * (s - 1) for s in _x) * 1. / (n * (n-1))
 		return D
 
 class EntropyIndex(DiversityIndex):
@@ -65,10 +66,12 @@ class DiversityIndexRunner:
 		DiversityIndexRunner.runners[_string] = _class
 
 	def run(self, df, **kwargs):
-		options = {'method': 'Simpson', \
-				'threshold': 0}
+		options = {'method': 'Simpson',\
+				'threshold': 0,\
+				'vec_pre_normalized': True,\
+				'ignoreN': True}
 		options.update(kwargs)
-		return DiversityIndexRunner.runners[options['method']].calc_index(df, options['threshold']) * self.mask
+		return DiversityIndexRunner.runners[options['method']].calc_index(df, options['threshold'], options['vec_pre_normalized'], options['ignoreN']) * self.mask
 
 DiversityIndexRunner.register_class_name('Simpson', SimpsonIndex)
 DiversityIndexRunner.register_class_name('Entropy', EntropyIndex)

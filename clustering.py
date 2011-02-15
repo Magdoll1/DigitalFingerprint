@@ -1,22 +1,11 @@
 import sys
 import math
 import numpy as np
-import hcluster #TODO: handle it if hcluster isn't available -- homemade pdist?
 from newick import tree
 from DiversityIndex import DiversityIndexRunner, SimpsonIndex, EntropyIndex
 """
 Modified hierarchical clustering using Digital Fingerprinting
 """
-# ------- obsolete pdist functions -----------
-def find_index_in_condensed_array_help(cur, length, i):
-	if cur < length:
-		return (i, cur+i+1)
-	else:
-		return find_index_in_condensed_array_help(cur-length, length-1, i+1)
-
-def find_index_in_condensed_array(index, length):
-	return find_index_in_condensed_array_help(index, length-1, 0)
-
 class Cluster:
 	def __init__(self, df_list, **kwargs):
 		self.df_list = df_list
@@ -32,16 +21,16 @@ class Cluster:
 
 		self.trees = [tree.Leaf(self.df_list[i].name) for i in xrange(self.m)]
 
-		self.X = np.zeros((self.m, self.n), dtype=np.double)
+		self.X = np.zeros((self.m, self.n), dtype=np.float)
 		for i,df in enumerate(self.df_list):
 			df.normalized_vec()
-			di = self.runner.run(df, method=self.method, threshold=self.threshold)
+			di = self.runner.run(df, method=self.method, threshold=self.threshold, \
+					vec_pre_normalized=True, ignoreN=True)
 			self.X[i, :] = di	
-			print("self.X[{0}] is {1}".format(i, self.X[i,:]))
+			print("self.X[{0}] is {1}".format(i, self.X[i]))
 
 		# calculate the initial distance matrix
-		#self._dist = hcluster.pdist(self.X, 'euclidean')
-		self._dist = np.zeros((self.m, self.m), dtype=np.double)
+		self._dist = np.zeros((self.m, self.m), dtype=np.float)
 		for i in xrange(self.m):
 			self._dist[i, i] = float("inf")
 			for j in xrange(i+1, self.m):
@@ -68,39 +57,22 @@ class Cluster:
 			raise StopIteration, "done!"
 		print >> sys.stderr, "combining {0} and {1}".format(self.trees[i], self.trees[j])
 		
-		#_min_ind = self._dist.argmin()
-		#_min_val = self._dist[_min_ind]
-		#i, j = find_index_in_condensed_array(_min_ind, self.m) # guaranteed i < j
-		# pop out trees[i], trees[j], merge them into a new one
+		# merge j into i
 		size_i = len(self.trees[i].get_leaves())
 		size_j = len(self.trees[j].get_leaves())
 		t = tree.Tree()
 		t.add_edge((self.trees[i], 0, _min_val/2)) # (subtree-i, bootstrap=0, branch length=dist)
 		t.add_edge((self.trees[j], 0, _min_val/2)) 
 		self.trees[i] = t
-		self.trees[j] = None#self.trees.pop(j) # only do this if using pdist array
+		self.trees[j] = None
 		# NEW!!! instead of just adding df_list[j] to df_list[i], normalize the counts FIRST!!!
-#		self.df_list[i] += self.df_list[j] # OLD way: just add
-#		self.df_list[i].normalized_vec()
-		self.df_list[i].normalized_vec_add(self.df_list[j])
-		# TEMP: just turn it into ratios and average over two
-		#self.df_list[i].normalized_vec_add(self.df_list[j])
-		#self.df_list.pop(j) # only do this if using pdist-array
-		#self.m -= 1 # only do this if using pdist-array
+		self.df_list[i].normalized_vec_add(self.df_list[j], vec_pre_normalized=True, ignoreN=True)
 
 		print "before", self.X[i, ]
-		self.X[i] = self.runner.run(self.df_list[i], method=self.method, threshold=self.threshold)
+		self.X[i] = self.runner.run(self.df_list[i], method=self.method, threshold=self.threshold,\
+				vec_pre_normalized=True, ignoreN=True)
 		print("merged {0} and {1}".format(i, j))
-		print self.df_list[i].vec[:,-3][1:],
-		print self.df_list[j].vec[:,-3][1:]
 		print "new vec is now", self.X[i, ]
-		print "pos 0", self.X[i,0]
-#		X = self.X.tolist()
-#		X.pop(j)
-#		self.X = np.array(X)
-		# re-run distance calculation
-		# TODO: make this NOT dependent on hcluster...!
-#		self._dist = hcluster.pdist(self.X, 'euclidean')
 		
 #		self._dist[j, :] = float("inf")
 #		self._dist[:, j] = float("inf")
@@ -110,8 +82,10 @@ class Cluster:
 			#d = math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:]))
 			# method 2:
 			#d = self.df_list[i].get_vec_diff_sqsum(self.df_list[k])
-			#method 3:
+			# method 3: UPGMA
 			d = (self._dist[k, i] * size_i + self._dist[k, j] * size_j) / (size_i + size_j)
+			# method 4: complete linkage
+			#d = max(self._dist[k, i], self._dist[k, j])
 			print >> sys.stderr, "using Euclidean dist: {0}, using vecdiff: {1}".format(\
 					math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:])), d)
 			self._dist[i, k] = d
@@ -121,7 +95,7 @@ class Cluster:
 
 		print "dist is:",
 		print self._dist
-		raw_input("PRESS ANY KEY")
+#		raw_input("PRESS ANY KEY")
 	def run_till_end(self):
 		while len(self.trees) > 1:
 			try:

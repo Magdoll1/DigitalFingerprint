@@ -85,10 +85,13 @@ class DF(SeqVector):
 	def normalized_vec(self, ignoreN=True):
 		self.__seqvector.vec = self.__seqvector.vec * 1. / self.get_compressed_vec(ignoreN)
 
-	def normalized_vec_add(self, other, ignoreN=True):
-		print "this is compressed vec", self.get_compressed_vec(ignoreN)
-		self.__seqvector.vec = self.__seqvector.vec * 0.5 / self.get_compressed_vec(ignoreN)
-		self.__seqvector.vec += other.__seqvector.vec * 0.5 / other.get_compressed_vec(ignoreN)
+	def normalized_vec_add(self, other, vec_pre_normalized, ignoreN):
+		if vec_pre_normalized:
+			self.__seqvector.vec = self.__seqvector.vec * 0.5 + \
+					other.__seqvector.vec * 0.5
+		else:
+			self.__seqvector.vec = self.__seqvector.vec * 0.5 / self.get_compressed_vec(ignoreN)
+			self.__seqvector.vec += other.__seqvector.vec * 0.5 / other.get_compressed_vec(ignoreN)
 
 	@property
 	def nonzero(self):
