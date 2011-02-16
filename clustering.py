@@ -23,6 +23,7 @@ class Cluster:
 
 		self.X = np.zeros((self.m, self.n), dtype=np.float)
 		for i,df in enumerate(self.df_list):
+			print >> sys.stderr, "normalizing {0}....".format(df.name)
 			df.normalized_vec()
 			di = self.runner.run(df, method=self.method, threshold=self.threshold, \
 					vec_pre_normalized=True, ignoreN=True)
@@ -111,22 +112,22 @@ if __name__ == "__main__":
 	parser = OptionParser(option_list=[ \
 			make_option("-f", "--df-filename", dest="df_filename"), \
 			make_option("-r", "--ecoli-range", dest="ecoli_range", help="specify the E.coli position range to use ex:(238,338)"), \
-			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all 50,000 positions"),\
+			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all <len> positions"),\
+			make_option("-l", "--len", dest="aln_len", type=int, default=50000, help="alignment length (default 50000)"),\
 			make_option("-d", "--di-file", dest="di_filename", default=None, help="write out DI to file")
 			])
 
 	options, args = parser.parse_args()
 	if options.ecoli_range is not None:
 		ecoli_range = eval(options.ecoli_range)  # note: 1-based
+	
+	print >> sys.stderr, "alignment length is", options.aln_len
 
-#	mask = np.array(SILVA.DI_Simpson_Ecoli1542_SILVA100)
 	from DF import DFReader
 	df_list = [df for df in DFReader(open(options.df_filename))]
 	print >> sys.stderr, "finished reading DF file", options.df_filename
 
-#	import temp_utils
-#	mask = temp_utils.create_threshold_mask_for_df_list(df_list, threshold=100)
-	mask = np.zeros(520, dtype=np.float)#mask = np.zeros(50000, dtype=np.float)
+	mask = np.zeros(options.aln_len, dtype=np.float)
 
 	if options.ecoli_only:
 		mask[SILVA.Ecoli1542_SILVA100] = 1. # this sets to using ONLY E.coli positions
@@ -145,8 +146,6 @@ if __name__ == "__main__":
 		ecoli_map = filter(lambda i: L2[i]%1==0 and 358 <= L2[i] <= 514, xrange(520))
 		mask[:] = 0.
 		mask[ecoli_map] = 1.
-#		mask[:] = 1. # TODO: remove later
-		#print >> sys.stderr, "taking all positions from {0}-{1}".format(mask_lo, mask_hi)
 
 #	mask[:6427] = 0. # remove all locations < E.coli 358 (which is 6427)
 #	mask[11895:] = 0. # remove all locations > E.coli 514 (which is 11894)
@@ -167,23 +166,13 @@ if __name__ == "__main__":
 	V_ecoli = mask.nonzero()[0] # this is THE Ecoli mask
 
 	for df in df_list:
-#		print >> sys.stderr, "changing vec mask for", df.name
+		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
 
-#	mask[27655:34343] = 1.
-#	mask = mask * np.array(SILVA.DI_Simpson_humanCrap_SILVA100)
-#	c = Cluster(df_list, method='Simpson', threshold=100, mask=mask)
 	c = Cluster(df_list, method='Simpson', threshold=0)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
 
-#	for i in xrange(c.m):
-#		print(c.original_names[i] + ',' + ",".join(map(str, c.X[i,])))
-#	print()
-#	d = hcluster.squareform(c._dist)
-#	for i in xrange(c.m):
-#		print(",".join(map(str, d[i,:])))
-
-	c.run_till_end()
-	print c.trees[0]
+#	c.run_till_end()
+#	print c.trees[0]

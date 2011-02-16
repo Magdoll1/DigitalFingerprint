@@ -68,8 +68,10 @@ class DiversityIndexRunner:
 	def run(self, df, **kwargs):
 		options = {'method': 'Simpson',\
 				'threshold': 0,\
-				'vec_pre_normalized': True,\
+				'vec_pre_normalized': False,\
 				'ignoreN': True}
+		assert 'vec_pre_normalized' in kwargs
+		assert 'ignoreN' in kwargs
 		options.update(kwargs)
 		return DiversityIndexRunner.runners[options['method']].calc_index(df, options['threshold'], options['vec_pre_normalized'], options['ignoreN']) * self.mask
 

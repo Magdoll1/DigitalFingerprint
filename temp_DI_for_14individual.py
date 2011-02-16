@@ -19,25 +19,43 @@ refmap = Read.RefMap(os.environ['PCODE'] + '/Silva/SILVA100_justHumanCrap.1crap_
 phred_cutoff = 20
 min_length = 30
 
-f = open('test.out_bowtie_phred20min30.DF', 'w')
-dfwriter = DF.DFWriter(f)
-for sample in SAMPLES:
-	print >> sys.stderr, "processing {0}.........".format(sample)
-	seqvec = np.zeros((5,520), dtype=np.int)
-#	for file in glob.iglob(inhouse.format(sample)):
-#		print >> sys.stderr, "unzipping {0}.......".format(file)
-##		if file.endswith('.bz2'):
-#			os.system("bunzip2 " + file)
-#			file = file[:-4]
-#		hello.gather_reads_inhouse(file, refmap, seqvec, phred_cutoff, min_length)
-#		os.system("bzip2 " + file)
-	g = hello.gather_reads_BowTie(filename.format(sample), refmap, seqvec, phred_cutoff, min_length)
-	df = Read.ReadDF(sample,refmap)
-	df.len = 520
-	df.assign_vec(seqvec)
-	dfwriter.write(df)
-	f.flush()
-	runner = DiversityIndexRunner()
-	di=runner.run(df, method='Simpson', threshold=10)[valid_DI_pos]
-	print("{0},{1}".format(sample,",".join(map(str,di))))
-f.close()
+def main(file_iter, output_df_filename):
+	print >> sys.stderr, "phred cutoff:", phred_cutoff
+	print >> sys.stderr, "min length  :", min_length
+	f = open(output_df_filename, 'w')
+	dfwriter = DF.DFWriter(f)
+	for sample,file in file_iter:
+		print >> sys.stderr, "processing {0}.........".format(sample)
+		seqvec = np.zeros((5,520), dtype=np.int)
+	#	for file in glob.iglob(inhouse.format(sample)):
+	#		print >> sys.stderr, "unzipping {0}.......".format(file)
+	##		if file.endswith('.bz2'):
+	#			os.system("bunzip2 " + file)
+	#			file = file[:-4]
+	#		hello.gather_reads_inhouse(file, refmap, seqvec, phred_cutoff, min_length)
+	#		os.system("bzip2 " + file)
+		used, discarded = hello.gather_reads_BowTie(file, refmap, seqvec, phred_cutoff, min_length)
+		print >> sys.stderr, file, used, discarded
+		df = Read.ReadDF(sample, refmap)
+		df.len = 520
+		df.assign_vec(seqvec)
+		dfwriter.write(df)
+		runner = DiversityIndexRunner()
+		di=runner.run(df, method='Simpson', threshold=0, vec_pre_normalized=False, ignoreN=True)[valid_DI_pos]
+		print("{0},{1}".format(sample,",".join(map(str,di))))
+	f.close()
+
+def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/data/16S_090630/1411-1',\
+		pattern='1411-1.trimmedB2M30.bowtie_random_seed_*.aligned_out',\
+		output_df_prefix='1411-1.trimmedB2M30.bowtie_random_seed'):
+	"""
+	For all files under <d> with pattern *trimmedB2M30.bowtie_random_seed_*.aligned_out
+	run it through main() to get the DF and DI
+	"""
+	file_iter = [(os.path.basename(f),f) for f in glob.iglob(d + '/' + pattern)]
+	output_df_filename = output_df_prefix + ".phred{0}min{1}.DF".format(phred_cutoff, min_length)
+	main(file_iter, os.path.join(d,output_df_filename))
+
+if __name__ == "__main__":
+#	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
+	random_seed_test()
