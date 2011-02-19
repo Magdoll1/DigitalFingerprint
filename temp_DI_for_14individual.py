@@ -10,14 +10,19 @@ SAMPLES = ['1411-1', '1411-4', '1412-1', '1412-4', '1413-1', '1413-4', \
         '1416-1', '1416-4', '1417-1', '1417-4', '1418-1', '1418-4', \
         '1419-1', '1419-4', '1420-1', '1420-4']
 
+if os.popen("hostname").read().startswith('rhino'):
+	print >> sys.stderr, "switching silo due to rhino...."
+	os.environ['silo'] = "/shared/silo_researcher/Lampe_J/Gut_Bugs/"
+
 from Solexa_settings import L2
 valid_DI_pos = filter(lambda i: L2[i]%1==0 and 358<=L2[i]<=514, xrange(520))
 
-filename = "/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/data/16S_090630/{0}/alignedSILVA100justHumanCrapV3curated1crap{0}.trimmedB2M30.fastq.out"
-inhouse = "/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/data/16S_090630/{0}/unalignedSILVA100*inhouse_aligned.pickle*"
-refmap = Read.RefMap(os.environ['PCODE'] + '/Silva/SILVA100_justHumanCrap.1crap_masked.V3region.fna.gap_map.bz2', 520)
-phred_cutoff = 20
+filename = os.environ['silo'] + "/FH_Meredith/data/16S_090630/{0}/alignedSILVA100justHumanCrapV3curated1crap{0}.trimmedB2M30.fastq.out"
+inhouse = os.environ['silo'] + "/FH_Meredith/data/16S_090630/{0}/unalignedSILVA100*inhouse_aligned.pickle*"
+refmap = Read.RefMap(os.environ['PCODE'] + '/Silva/SILVA100_justHumanCrap.1crap_masked.V3region.fna.gap_map.bz2', 520, os.environ['PCODE'] + '/Silva/SILVA100_justHumanCrap.1crap_masked.V3region_ungapped.fna')
+phred_cutoff = 10
 min_length = 30
+max_degen = 5
 
 def main(file_iter, output_df_filename):
 	print >> sys.stderr, "phred cutoff:", phred_cutoff
@@ -27,15 +32,16 @@ def main(file_iter, output_df_filename):
 	for sample,file in file_iter:
 		print >> sys.stderr, "processing {0}.........".format(sample)
 		seqvec = np.zeros((5,520), dtype=np.int)
-	#	for file in glob.iglob(inhouse.format(sample)):
-	#		print >> sys.stderr, "unzipping {0}.......".format(file)
-	##		if file.endswith('.bz2'):
-	#			os.system("bunzip2 " + file)
-	#			file = file[:-4]
-	#		hello.gather_reads_inhouse(file, refmap, seqvec, phred_cutoff, min_length)
-	#		os.system("bzip2 " + file)
-		used, discarded = hello.gather_reads_BowTie(file, refmap, seqvec, phred_cutoff, min_length)
-		print >> sys.stderr, file, used, discarded
+		for file in glob.iglob(inhouse.format(sample)):
+			print >> sys.stderr, "unzipping {0}.......".format(file)
+			if file.endswith('.bz2'):
+				os.system("bunzip2 " + file)
+				file = file[:-4]
+			used, discarded = hello.gather_reads_inhouse(file, refmap, seqvec, phred_cutoff, min_length, max_degen)
+			print >> sys.stderr, "used:", used, "discarded:", discarded
+			os.system("bzip2 " + file)
+#		used, discarded = hello.gather_reads_BowTie(file, refmap, seqvec, phred_cutoff, min_length)
+#		print >> sys.stderr, file, used, discarded
 		df = Read.ReadDF(sample, refmap)
 		df.len = 520
 		df.assign_vec(seqvec)
@@ -57,5 +63,6 @@ def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/d
 	main(file_iter, os.path.join(d,output_df_filename))
 
 if __name__ == "__main__":
-#	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
-	random_seed_test()
+	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
+	main(file_iter, 'test.DF')
+#	random_seed_test()
