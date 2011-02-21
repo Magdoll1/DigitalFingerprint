@@ -27,6 +27,7 @@ max_degen = 5
 def main(file_iter, output_df_filename):
 	print >> sys.stderr, "phred cutoff:", phred_cutoff
 	print >> sys.stderr, "min length  :", min_length
+	print >> sys.stderr, "max degen (if used): ", max_degen
 	f = open(output_df_filename, 'w')
 	dfwriter = DF.DFWriter(f)
 	for sample,file in file_iter:
@@ -64,5 +65,15 @@ def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/d
 
 if __name__ == "__main__":
 	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
-	main(file_iter, 'test.DF')
+	main(file_iter, 'test.out_inhouse_phred10min30maxdegen5.DF')
 #	random_seed_test()
+#	df_dict = {}
+#	for df in DF.DFReader(open('test.out_inhouse_phred10min30maxdegen5.DF')):
+#		df_dict[df.name] = df
+#	for df in DF.DFReader(open('test.out_bowtie_phred10min30.DF')):
+#		df_dict[df.name].assign_vec(df_dict[df.name].vec+df.vec)
+#	f = open('test.out_bowtie_inhouse_phred10min30maxdegen5.DF','w')
+#	w = DF.DFWriter(f)
+#	w.writes(df_dict.itervalues())
+#	f.close()
+	

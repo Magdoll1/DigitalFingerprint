@@ -174,5 +174,5 @@ if __name__ == "__main__":
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
 
-#	c.run_till_end()
-#	print c.trees[0]
+	c.run_till_end()
+	print c.trees[0]
