@@ -3,7 +3,7 @@ cimport numpy as np
 from Solexa_settings import BOWTIE_PHRED_OFFSET, NT_MAPPING, BowTieMatch
 import cPickle
 
-def gather_reads_BowTie(object filename, object refmap, np.ndarray[np.int64_t, ndim=2] seqvec, int phred_cutoff, int min_length):
+def gather_reads_BowTie(object filename, object refmap, np.ndarray[np.int64_t, ndim=2] seqvec, int phred_cutoff, int min_length, int ecoli_pos_lo, int ecoli_pos_hi):
 	"""
 	filename --- bowtie output, must have <name>, <strand>, <ref seq id>, <offset>, <read>, <quality>, <the_rest_is_ignored>
 	refmap   --- Read.RefMap object
@@ -19,6 +19,11 @@ def gather_reads_BowTie(object filename, object refmap, np.ndarray[np.int64_t, n
 		name, strand, ref_seq_id, offset, read, quality, junk = line.strip().split('\t', 6)
 		len_read = len(read)
 		offset = int(offset)
+		if refmap.gap_map[ref_seq_id][offset] < ecoli_pos_lo or\
+				refmap.gap_map[ref_seq_id][offset] > ecoli_pos_hi:
+#			raw_input("discarding read becuz mapped pos " + str(refmap.gap_map[ref_seq_id][offset]))
+			discard += 1
+			continue
 		for i in range(len_read+1):
 			if i == len_read:
 				break
@@ -43,7 +48,7 @@ def gather_reads_BowTie(object filename, object refmap, np.ndarray[np.int64_t, n
 	f.close()
 	return use, discard
 
-def subsample_reads_BowTie_prepare(object filename, int phred_cutoff, int min_length):
+def subsample_reads_BowTie_prepare(object filename, object refmap, int phred_cutoff, int min_length, int ecoli_pos_lo, int ecoli_pos_hi):
 	"""
 	Similar to gather_reads_BowTie but in preparation for subsampling,
 	simply goes through the file, marking down all file locations of eligible reads
@@ -59,6 +64,9 @@ def subsample_reads_BowTie_prepare(object filename, int phred_cutoff, int min_le
 		if not line: break
 		name, strand, ref_seq_id, offset, read, quality, junk = line.strip().split('\t', 6)
 		len_read = len(read)
+		if refmap.gap_map[ref_seq_id][offset] < ecoli_pos_lo or\
+				refmap.gap_map[ref_seq_id][offset] > ecoli_pos_hi:
+					continue
 		for i in range(len_read+1):
 			if i == len_read:
 				break
@@ -93,18 +101,23 @@ def subsample_reads_BowTie(object filename, object refmap, np.ndarray[np.int64_t
 			seqvec[ind, pos] += 1
 	f.close()
 
-def gather_reads_inhouse(object filename, object refmap, np.ndarray[np.int64_t, ndim=2] seqvec, int phred_cutoff, int min_length, int max_degen):
+def gather_reads_inhouse(object filename, object refmap, np.ndarray[np.int64_t, ndim=2] seqvec, int phred_cutoff, int min_length, int max_degen, int ecoli_pos_lo, int ecoli_pos_hi):
 	"""
 	Currently UNUSED and UNTESTED
 	max_degen -- max number of mismatches of the read to the refseq
 	"""
 	cdef int i, j, pos, ind, len_read, mismatch
-	cdef int used=0, discarded=0
+	cdef int used=0, discard=0
 	with open(filename) as f:
 		aligned = cPickle.load(f)[1] # pickle is (unaligned, aligned), just look at aligned
 	for m in aligned.itervalues(): # m is a BowTieMatch
 		len_read = len(m.read)
 		offset = int(m.offset)
+		if refmap.gap_map[m.ref_seq_id][offset] < ecoli_pos_lo or\
+				refmap.gap_map[m.ref_seq_id][offset] > ecoli_pos_hi:
+#			raw_input("discarding read becuz mapped pos " + str(refmap.gap_map[ref_seq_id][offset]))
+			discard += 1
+			continue
 		for i in range(len_read+1):
 			if i == len_read:
 				break
@@ -125,7 +138,7 @@ def gather_reads_inhouse(object filename, object refmap, np.ndarray[np.int64_t, 
 #					raw_input("not using becuz mismatch maxed:\n{0}\n{1}".format(\
 #							refmap.fasta[m.ref_seq_id].seq[m.offset:(m.offset+j)],\
 #							m.read[:j]))
-					discarded += 1
+					discard += 1
 					to_use = False
 					break
 				j += 1
@@ -143,6 +156,6 @@ def gather_reads_inhouse(object filename, object refmap, np.ndarray[np.int64_t, 
 				seqvec[ind, pos] += 1
 		else:
 #			print("discarding read {0} becuz useful read len {1}".format(m.read, i))
-			discarded += 1
-	return used, discarded
+			discard += 1
+	return used, discard
 	
