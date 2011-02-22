@@ -63,6 +63,7 @@ def subsample_reads_BowTie_prepare(object filename, object refmap, int phred_cut
 		line = f.readline()
 		if not line: break
 		name, strand, ref_seq_id, offset, read, quality, junk = line.strip().split('\t', 6)
+		offset = int(offset)
 		len_read = len(read)
 		if refmap.gap_map[ref_seq_id][offset] < ecoli_pos_lo or\
 				refmap.gap_map[ref_seq_id][offset] > ecoli_pos_hi:
@@ -100,6 +101,32 @@ def subsample_reads_BowTie(object filename, object refmap, np.ndarray[np.int64_t
 			ind = NT_MAPPING[nt]
 			seqvec[ind, pos] += 1
 	f.close()
+
+def subsample_reads_inhouse(object refmap, np.ndarray[np.int64_t, ndim=2] seqvec, object eligible, int phred_cutoff, int min_length, int size):
+	"""
+	Given eligible which is a list of (file pos, read len) from subsample_reads_BowTie_prepare
+	Randomly sample <size> reads and store the nt counts in seqvec (which should be cleared before called!)
+	"""
+	import random
+	cdef int N, i, j, pos, ind, len_read
+	N = len(eligible)
+	for i in random.sample(xrange(N), min(N,size)):
+		m = eligible[i]
+		len_read = len(m.read)
+		offset = int(m.offset)
+		for i in range(len_read+1):
+			if i == len_read:
+				break
+			if ord(m.quality[i]) - BOWTIE_PHRED_OFFSET < phred_cutoff:
+				break
+		if i >= min_length:
+			for j in range(i):
+				pos = refmap.gap_map[m.ref_seq_id][m.offset+j]
+				nt = m.read[j]
+				if nt not in NT_MAPPING:
+					nt = 'N'
+				ind = NT_MAPPING[nt]
+				seqvec[ind, pos] += 1
 
 def gather_reads_inhouse(object filename, object refmap, np.ndarray[np.int64_t, ndim=2] seqvec, int phred_cutoff, int min_length, int max_degen, int ecoli_pos_lo, int ecoli_pos_hi):
 	"""
@@ -158,4 +185,43 @@ def gather_reads_inhouse(object filename, object refmap, np.ndarray[np.int64_t, 
 #			print("discarding read {0} becuz useful read len {1}".format(m.read, i))
 			discard += 1
 	return used, discard
+
+def subsample_reads_inhouse_prepare(object filename, object refmap, int phred_cutoff, int min_length, int max_degen, int ecoli_pos_lo, int ecoli_pos_hi):
+	"""
+	max_degen -- max number of mismatches of the read to the refseq
+	"""
+	cdef int i, j, pos, ind, len_read, mismatch
+	eligible = []
+	with open(filename) as f:
+		aligned = cPickle.load(f)[1] # pickle is (unaligned, aligned), just look at aligned
+	for m in aligned.itervalues(): # m is a BowTieMatch
+		len_read = len(m.read)
+		offset = int(m.offset)
+		if refmap.gap_map[m.ref_seq_id][offset] < ecoli_pos_lo or\
+				refmap.gap_map[m.ref_seq_id][offset] > ecoli_pos_hi:
+			continue
+		for i in range(len_read+1):
+			if i == len_read:
+				break
+			if ord(m.quality[i]) - BOWTIE_PHRED_OFFSET < phred_cutoff:
+				break
+		if i >= min_length:
+			j = 0
+			mismatch = 0
+			to_use = True
+			while j < i:
+				nt_a = m.read[j]
+				nt_b = refmap.fasta[m.ref_seq_id].seq[m.offset+j]
+				if (nt_a in ('T','U') and nt_b not in ('T','U')) or \
+				   (nt_b in ('T','U') and nt_a not in ('T','U')) or \
+				   (nt_a not in ('T','U') and nt_b not in ('T','U') and nt_a!=nt_b):
+					mismatch += 1
+				if mismatch > max_degen:
+					to_use = False
+					break
+				j += 1
+			if not to_use:
+				continue
+			eligible.append(m)
+	return eligible
 	
