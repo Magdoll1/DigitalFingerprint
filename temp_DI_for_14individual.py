@@ -25,8 +25,8 @@ refmap = Read.RefMap(os.environ['PCODE'] + '/Silva/SILVA100_justHumanCrap.1crap_
 phred_cutoff = 10
 min_length = 30
 max_degen = 3
-ecoli_lo = L2.index(340)
-ecoli_hi = L2.index(484)
+ecoli_lo = L2.index(340) # this is used for removing reads that map to pos ...338, 339 of V3
+ecoli_hi = L2.index(484) # this is used for removing reads that map to pos 484, 485, ...of V3
 
 SUBSAMPLE_SIZES = [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920, 163840]
 
@@ -75,7 +75,7 @@ def subsampling_prepare_inhouse(file_iter):
 		dump(eligible, f)
 		f.close()
 
-def subsampling_BowTie_n_inhouse(file_iter):
+def subsampling_BowTie_n_inhouse(file_iter, di_method):
 	from cPickle import *
 	runner = DiversityIndexRunner()
 	seqvec = np.zeros((5,520), dtype=np.int)
@@ -91,7 +91,7 @@ def subsampling_BowTie_n_inhouse(file_iter):
 			df = Read.ReadDF(sample, refmap)
 			df.len = 520
 			df.assign_vec(seqvec)
-			di=runner.run(df, method='Simpson', threshold=0, vec_pre_normalized=False, ignoreN=True)[valid_DI_pos]
+			di=runner.run(df, method=di_method, threshold=0, vec_pre_normalized=False, ignoreN=True)[valid_DI_pos]
 			print("{0},{1},{2}".format(sample,size,",".join(map(str,di))))
 
 def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/data/16S_090630/1411-1',\
@@ -108,7 +108,7 @@ def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/d
 if __name__ == "__main__":
 	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
 	#subsampling_prepare_inhouse(file_iter)
-	subsampling_BowTie_n_inhouse(file_iter)
+	subsampling_BowTie_n_inhouse(file_iter, di_method='Entropy')
 	sys.exit(-1)
 	f = open('test.out_inhouse_phred10min30maxdegen5ecoli340to484.log', 'a+')
 	main(file_iter, 'test.out_inhouse_phred10min30maxdegen5ecoli340to484.DF',f)

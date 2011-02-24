@@ -24,7 +24,7 @@ class Cluster:
 		self.X = np.zeros((self.m, self.n), dtype=np.float)
 		for i,df in enumerate(self.df_list):
 			print >> sys.stderr, "normalizing {0}....".format(df.name)
-			df.normalized_vec()
+			df.normalized_vec(ignoreN=True)
 			di = self.runner.run(df, method=self.method, threshold=self.threshold, \
 					vec_pre_normalized=True, ignoreN=True)
 			self.X[i, :] = di	
@@ -104,7 +104,7 @@ class Cluster:
 			except StopIteration:
 				break
 
-if __name__ == "__main__":
+def main():
 	import SILVA 
 	ecoli_map = SILVA.Ecoli1542_SILVA100
 	
@@ -168,11 +168,13 @@ if __name__ == "__main__":
 	for df in df_list:
 		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
-
 	c = Cluster(df_list, method='Simpson', threshold=0)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
-
 	c.run_till_end()
-	print c.trees[0]
+	return c.trees[0]
+
+if __name__ == "__main__":
+	print main()
+

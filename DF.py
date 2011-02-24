@@ -84,6 +84,16 @@ class DF(SeqVector):
 
 	def normalized_vec(self, ignoreN=True):
 		self.__seqvector.vec = self.__seqvector.vec * 1. / self.get_compressed_vec(ignoreN)
+		# the code below was my feeble attempt to correct for the fact
+		# that now each positions counts may not add up to 1....*sigh*
+#		ind = SeqVector.mapping['A']
+#		n_ind = SeqVector.mapping['N']
+#		for i in xrange(self.len):
+#			if ignoreN:
+#				p = 1. - self.__seqvector.vec[:, i].sum() + self.__seqvector.vec[n_ind, i]
+#			else:
+#				p = 1. - self.__seqvector.vec[:, i].sum()
+#			self.__seqvector.vec[ind, i] += p
 
 	def normalized_vec_add(self, other, vec_pre_normalized, ignoreN):
 		if vec_pre_normalized:
@@ -112,6 +122,14 @@ class DF(SeqVector):
 	@property
 	def vec(self):
 		return self.__seqvector.vec
+
+	@property
+	def nt_count(self, ignoreN=True):
+		inds = range(self.number_of_nucleotides)
+		if ignoreN:
+			inds.remove(SeqVector.mapping['N'])
+		return self.__seqvector.vec[inds, :].sum()
+
 
 	def assign_vec(self, vec):
 		self.__seqvector.vec = vec

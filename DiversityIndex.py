@@ -35,21 +35,29 @@ class EntropyIndex(DiversityIndex):
 	where Q is the background nucleotide distribution and
 	      P is the current column's nucleotide distribution
 	Right now we use log 2.
-	(N_cutoff is NOT used!)
+	Note: threshold is not used, ignored
 	"""
 	@staticmethod
-	def calc_index(df, threshold):
+	def calc_index(df, threshold, vec_pre_normalized, ignoreN):
 		D = np.zeros(df.len, dtype=np.double)
 		log2 = lambda x: math.log(x, 2)
 		# first we calculate the background distribution
-		totaln = sum(sum(df[nt]) for nt in df) * 1.
-		Q = dict((nt, sum(df[nt])/totaln) for nt in df)
-
+		nts = [nt for nt in df]
+		if ignoreN: nts.remove('N')
+		totaln = df.nt_count * 1.
+		Q = dict((nt, df[nt].sum()/totaln) for nt in nts)
+		#raw_input("Q is {0}".format(Q))
 		# now calculate per-column entropy
 		for i in xrange(df.len):
-			n = sum(df.get_counts_at_pos(i, ignoreN=True)) * 1.
-			if n >= threshold and n > 1:
-				for nt in df: 
+			n = sum(df.get_counts_at_pos(i, ignoreN)) * 1.
+			if vec_pre_normalized:
+				for nt in nts:
+					p_i = df[nt][i]
+					q_i = Q[nt]
+					if p_i > 0:
+						D[i] += p_i * log2(p_i / q_i)
+			elif n >= threshold and n > 1:
+				for nt in nts:
 					p_i = df[nt][i] / n
 					q_i = Q[nt]
 					if p_i > 0:
