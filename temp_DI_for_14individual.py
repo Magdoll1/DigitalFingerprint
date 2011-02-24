@@ -9,6 +9,10 @@ SAMPLES = ['1411-1', '1411-4', '1412-1', '1412-4', '1413-1', '1413-4', \
         '1414-1', '4414-1', '1414-4', '4414-4', '1415-1', '1415-4', \
         '1416-1', '1416-4', '1417-1', '1417-4', '1418-1', '1418-4', \
         '1419-1', '1419-4', '1420-1', '1420-4']
+
+NEW_SAMPLES = ['A +0', 'A +3', 'B +0', 'B +3', 'Ca +0', 'Ca +3', 'Cb +0', 'Cb +3',\
+		'D +0', 'D +3', 'E +0', 'E +3', 'F +0', 'F +3', 'G +0', 'G +3', 'H +0', 'H +3',\
+		'I +0', 'I +3']
 #SAMPLES = ['1418-1', '1418-4', '1419-1', '1419-4', '1420-1', '1420-4']
 
 if os.popen("hostname").read().startswith('rhino'):
@@ -29,6 +33,7 @@ ecoli_lo = L2.index(340) # this is used for removing reads that map to pos ...33
 ecoli_hi = L2.index(484) # this is used for removing reads that map to pos 484, 485, ...of V3
 
 SUBSAMPLE_SIZES = [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480, 40960, 81920, 163840]
+#SUBSAMPLE_SIZES = [327680, 655360]
 
 def main(file_iter, output_df_filename, log_f):
 	log_f.write("phred cutoff:{0}\n".format(phred_cutoff))
@@ -109,6 +114,24 @@ def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/d
 	output_df_filename = output_df_prefix + ".phred{0}min{1}.DF".format(phred_cutoff, min_length)
 	main(file_iter, os.path.join(d,output_df_filename))
 
+def subsampling_files_sanity_check(file_pattern, sample_names, subsample_sizes):
+	"""
+	Check each subsampled iter file and make sure they are complete:
+	has all samples denoted by sample_names and have all subsample sizes
+	"""
+	seen = []
+	for file in glob.iglob(file_pattern):
+		print >> sys.stderr, "sanity checking for file {0}....".format(file)
+		with open(file) as f:
+			for line in f:
+				sample, size, rest = line.strip().split(',', 2)
+				seen.append((sample, size))
+		for sample in sample_names:
+			for size in subsample_sizes:
+				if (sample, str(size)) not in seen:
+					print("file {0} is missing sample {1} for size {2}!!".format(file, sample, size))
+
+
 def jackknifing_tree(file_pattern, di_method):
 	"""
 	Given a pattern for the list of subsampled DI files
@@ -134,6 +157,7 @@ def jackknifing_tree(file_pattern, di_method):
 				if size not in d:
 					d[size] = {}
 				d[size][sample] = np.array(map(float, di.split(',')))
+		if len(d) == 0: continue
 		if sizes is None:
 			sizes = d.keys()
 			sizes.sort()
@@ -161,10 +185,68 @@ def jackknifing_tree(file_pattern, di_method):
 
 	return trees, sym_diff, rob_diff
 
+def calculate_DI_rarefaction(file_pattern):
+	import numpy as np
+	import math
+	samples = None
+	d = {}
+	for file in glob.iglob(file_pattern):
+		print >> sys.stderr, "reading subsamplined DI file {0}....".format(file)
+		with open(file) as f:
+			for line in f:
+				sample, size, di = line.strip().split(',', 2)
+				if sample not in d:
+					d[sample] = {}
+				if size not in d[sample]:
+					d[sample][size] = []
+				d[sample][size].append(np.array(map(float, di.split(','))))
+		if samples is None:
+			samples = d.keys()
+			samples.sort()
+	
+	euclidean = lambda a, b: math.sqrt(sum(x**2 for x in a-b))
+	for sample in samples:
+		f = open(sample + '.rarefaction', 'w')
+		f.write(sample + '\n')
+		di_real = d[sample]['real'][0]
+		for size in SUBSAMPLE_SIZES:
+			f.write("{size},{diffs}\n".format(\
+					size=size,\
+					diffs=",".join([str(euclidean(di_real,x)) for x in d[sample][str(size)]])))
+		f.close()
+
+def calculate_intra_n_iter_diffs(di_filename):
+	import numpy as np
+	import math
+	d = {}
+	with open(di_filename) as f:
+		for line in f:
+			sample, di = line.strip().split(',', 1)
+			d[sample] = np.array(map(float, di.split(',')))
+	intra_diffs = []
+	inter_diffs = []
+	samples = d.keys()
+	euclidean = lambda a, b: math.sqrt(sum(x**2 for x in a-b))
+	for i,sample1 in enumerate(samples):
+		for sample2 in samples[i+1:]:
+			dist = euclidean(d[sample1], d[sample2])
+			if sample1[1:4] == sample2[1:4]: # same individual
+				print >> sys.stderr, "{0} and {1} come from same individual".format(sample1, sample2)
+				intra_diffs.append(dist)
+			else:
+				inter_diffs.append(dist)
+	return intra_diffs, inter_diffs
+
 if __name__ == "__main__":
 	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
 	#subsampling_prepare_inhouse(file_iter)
-	result = jackknifing_tree('useThisFlora/*v2_iter*', di_method='Entropy')
+	#subsampling_BowTie_n_inhouse(file_iter, di_method='Simpson')
+	subsampling_files_sanity_check('useThisFlora/files/*removed', NEW_SAMPLES, SUBSAMPLE_SIZES+['real'])
+	#result = jackknifing_tree('useThisFlora/*v2_iter*', di_method='Simpson')
+	#result = jackknifing_tree('/shared/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/output/DI/preAssembly_DI_rarefactions/all14patients.Simpson.sampled_rarefaction.forMeredith/*iter*.txt', di_method='Simpson')
+	#result = jackknifing_tree('working_results/14illumina/subsampling_Entropy/*iter*txt*1412removed', di_method='Entropy')
+	#calculate_DI_rarefaction('useThisFlora/*v2_iter*1412removed')
+	#i, j= calculate_intra_n_iter_diffs('test')
 	sys.exit(-1)
 	f = open('test.out_inhouse_phred10min30maxdegen5ecoli340to484.log', 'a+')
 	main(file_iter, 'test.out_inhouse_phred10min30maxdegen5ecoli340to484.DF',f)

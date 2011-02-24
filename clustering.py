@@ -33,7 +33,7 @@ class Cluster:
 			di = self.runner.run(df, method=self.method, threshold=self.threshold, \
 					vec_pre_normalized=True, ignoreN=True)
 			self.X[i, :] = di	
-			print("self.X[{0}] is {1}".format(i, self.X[i]))
+#			print("self.X[{0}] is {1}".format(i, self.X[i]))
 
 		# calculate the initial distance matrix
 		self._dist = np.zeros((self.m, self.m), dtype=np.float)
@@ -103,11 +103,12 @@ class Cluster:
 		if self.df_list is not None:
 			self.df_list[i].normalized_vec_add(self.df_list[j], vec_pre_normalized=True, ignoreN=True)
 
-			print "before", self.X[i, ]
+#			print "before", self.X[i, ]
 			self.X[i] = self.runner.run(self.df_list[i], method=self.method, threshold=self.threshold,\
 					vec_pre_normalized=True, ignoreN=True)
-			print("merged {0} and {1}".format(i, j))
-			print "new vec is now", self.X[i, ]
+#			print("merged {0} and {1}".format(i, j))
+#			print "new vec is now", self.X[i, ]
+#			raw_input("press to continue")
 		
 #		self._dist[j, :] = float("inf")
 #		self._dist[:, j] = float("inf")
@@ -128,8 +129,8 @@ class Cluster:
 		self._dist[j, :] = float("inf")
 		self._dist[:, j] = float("inf")
 
-		print "dist is:",
-		print self._dist
+#		print "dist is:",
+#		print self._dist
 #		raw_input("PRESS ANY KEY")
 	def run_till_end(self):
 		while len(self.trees) > 1:
@@ -202,7 +203,7 @@ def main(args=None):
 	for df in df_list:
 		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
-	c = Cluster(df_list, method='Simpson', threshold=0)
+	c = Cluster(df_list, method='Entropy', threshold=0)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
