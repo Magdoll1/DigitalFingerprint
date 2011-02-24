@@ -8,6 +8,11 @@ Modified hierarchical clustering using Digital Fingerprinting
 """
 class Cluster:
 	def __init__(self, df_list, **kwargs):
+		if df_list is None:
+			print >> sys.stderr, "called with a None, I hope you know what you're doing!"
+			print >> sys.stderr, "calling init_from_di_list later perhaps?"
+			self.df_list = None
+			return
 		self.df_list = df_list
 		self.original_names = [df.name for df in self.df_list]
 		self.mask = kwargs['mask'] if 'mask' in kwargs else 1.
@@ -41,7 +46,35 @@ class Cluster:
 				#d = self.df_list[i].get_vec_diff_sqsum(self.df_list[j])
 				self._dist[i, j] = d
 				self._dist[j, i] = d
-
+	
+	def init_from_di_list(self, di_dict, **kwargs):
+		"""
+		alternative __init__ taking a dict sample_name --> array of DI as input
+		if this init is used, we're expecting to run UPGMA clustering
+		"""
+		self.original_names = di_dict.keys()
+		self.original_names.sort()
+		self.mask = kwargs['mask'] if 'mask' in kwargs else 1.
+		self.method = kwargs['method'] if 'method' in kwargs else 'Simpson'
+		self.threshold = kwargs['threshold'] if 'threshold' in kwargs else 10
+		self.m = len(di_dict)
+		self.n = len(di_dict.itervalues().next())
+		self.trees = [tree.Leaf(x) for x in self.original_names]
+		self.X = np.zeros((self.m, self.n), dtype=np.float) 
+		# fill up X using di_dict
+		for i in xrange(self.m):
+			self.X[i] = di_dict[self.original_names[i]]
+		self._dist = np.zeros((self.m, self.m), dtype=np.float)
+		for i in xrange(self.m):
+			self._dist[i, i] = float("inf")
+			for j in xrange(i+1, self.m):
+				# method 1: Euclidean distance between DIs
+				d = math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[j,:]))
+				# method 2: sum of sum of distances squared between DFs
+				#d = self.df_list[i].get_vec_diff_sqsum(self.df_list[j])
+				self._dist[i, j] = d
+				self._dist[j, i] = d
+	
 	def write_DI(self, output_filename, mask=None):
 		with open(output_filename, 'w') as f:
 			for i, name in enumerate(self.original_names):
@@ -67,13 +100,14 @@ class Cluster:
 		self.trees[i] = t
 		self.trees[j] = None
 		# NEW!!! instead of just adding df_list[j] to df_list[i], normalize the counts FIRST!!!
-		self.df_list[i].normalized_vec_add(self.df_list[j], vec_pre_normalized=True, ignoreN=True)
+		if self.df_list is not None:
+			self.df_list[i].normalized_vec_add(self.df_list[j], vec_pre_normalized=True, ignoreN=True)
 
-		print "before", self.X[i, ]
-		self.X[i] = self.runner.run(self.df_list[i], method=self.method, threshold=self.threshold,\
-				vec_pre_normalized=True, ignoreN=True)
-		print("merged {0} and {1}".format(i, j))
-		print "new vec is now", self.X[i, ]
+			print "before", self.X[i, ]
+			self.X[i] = self.runner.run(self.df_list[i], method=self.method, threshold=self.threshold,\
+					vec_pre_normalized=True, ignoreN=True)
+			print("merged {0} and {1}".format(i, j))
+			print "new vec is now", self.X[i, ]
 		
 #		self._dist[j, :] = float("inf")
 #		self._dist[:, j] = float("inf")
@@ -104,7 +138,7 @@ class Cluster:
 			except StopIteration:
 				break
 
-def main():
+def main(args=None):
 	import SILVA 
 	ecoli_map = SILVA.Ecoli1542_SILVA100
 	
@@ -117,7 +151,7 @@ def main():
 			make_option("-d", "--di-file", dest="di_filename", default=None, help="write out DI to file")
 			])
 
-	options, args = parser.parse_args()
+	options, args = parser.parse_args(args=args)
 	if options.ecoli_range is not None:
 		ecoli_range = eval(options.ecoli_range)  # note: 1-based
 	

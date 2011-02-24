@@ -76,6 +76,10 @@ def subsampling_prepare_inhouse(file_iter):
 		f.close()
 
 def subsampling_BowTie_n_inhouse(file_iter, di_method):
+	"""
+	Run subsampling for BowTie+inhouse (inhouse must already have been pre-processed for eligibility)
+	Simply prints out per line: <sample>,<size>,<comma-separated DI>
+	"""
 	from cPickle import *
 	runner = DiversityIndexRunner()
 	seqvec = np.zeros((5,520), dtype=np.int)
@@ -105,10 +109,62 @@ def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/d
 	output_df_filename = output_df_prefix + ".phred{0}min{1}.DF".format(phred_cutoff, min_length)
 	main(file_iter, os.path.join(d,output_df_filename))
 
+def jackknifing_tree(file_pattern, di_method):
+	"""
+	Given a pattern for the list of subsampled DI files
+	(each file should have per-line format <sample>,<size>,<comma-separated DI>
+	 and have one of the sizes be 'real')
+	Run clustering and count the differences between subsampled and real trees
+	Returns: tree (size-->sample-->list of trees), symmetric_difference (size-->list of diffs),
+	         robinson_foulds_distance (size-->list of diffs)
+	"""
+	import numpy as np
+	from clustering import Cluster
+	import dendropy
+	dTree = lambda x: dendropy.Tree.get_from_string(x, "newick")
+	samples = None
+	sizes = None
+	trees = {}
+	for file in glob.iglob(file_pattern):
+		print >> sys.stderr, "reading subsamplined DI file {0}....".format(file)
+		d = {}
+		with open(file) as f:
+			for line in f:
+				sample, size, di = line.strip().split(',', 2)
+				if size not in d:
+					d[size] = {}
+				d[size][sample] = np.array(map(float, di.split(',')))
+		if sizes is None:
+			sizes = d.keys()
+			sizes.sort()
+			samples = d[sizes[0]].keys()
+			samples.sort()
+		for size, di_dict in d.iteritems():
+			c = Cluster(None)
+			c.init_from_di_list(di_dict, method=di_method, threshold=0)
+			c.run_till_end()
+			try:
+				trees[size].append(dTree(str(c.trees[0])))
+			except KeyError:
+				trees[size] = [dTree(str(c.trees[0]))]
+
+	# tally (1) symmetric differences (edge weight ignored)
+	# (2) robinson_foulds_distance (edge weight considered)
+	# 'real' is the size that is the full pool that we compare all other trees to
+	sym_diff = {}
+	rob_diff = {}
+	for size in sizes:
+		if size == 'real': continue
+		t_real = trees['real'][0]
+		sym_diff[size] = [t_real.symmetric_difference(t) for t in trees[size]]
+		rob_diff[size] = [t_real.robinson_foulds_distance(t) for t in trees[size]]
+
+	return trees, sym_diff, rob_diff
+
 if __name__ == "__main__":
 	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
 	#subsampling_prepare_inhouse(file_iter)
-	subsampling_BowTie_n_inhouse(file_iter, di_method='Entropy')
+	result = jackknifing_tree('useThisFlora/*v2_iter*', di_method='Entropy')
 	sys.exit(-1)
 	f = open('test.out_inhouse_phred10min30maxdegen5ecoli340to484.log', 'a+')
 	main(file_iter, 'test.out_inhouse_phred10min30maxdegen5ecoli340to484.DF',f)
