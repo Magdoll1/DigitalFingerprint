@@ -80,7 +80,7 @@ def subsampling_prepare_inhouse(file_iter):
 		dump(eligible, f)
 		f.close()
 
-def subsampling_BowTie_n_inhouse(file_iter, di_method):
+def subsampling_BowTie_n_inhouse(file_iter, di_method, df_output):
 	"""
 	Run subsampling for BowTie+inhouse (inhouse must already have been pre-processed for eligibility)
 	Simply prints out per line: <sample>,<size>,<comma-separated DI>
@@ -88,9 +88,14 @@ def subsampling_BowTie_n_inhouse(file_iter, di_method):
 	from cPickle import *
 	runner = DiversityIndexRunner()
 	seqvec = np.zeros((5,520), dtype=np.int)
+	print >> sys.stderr, "DFs will be written to {0}....".format(df_output)
+	h = open(df_output, 'w')
+	w = DF.DFWriter(h)
 	for sample,file in file_iter:
 		eligible_bowtie = hello.subsample_reads_BowTie_prepare(file, refmap, phred_cutoff, min_length, ecoli_lo, ecoli_hi)
 		eligible_inhouse = load(open(inhouse_eligible.format(sample, phred_cutoff, min_length, max_degen, L2[ecoli_lo], L2[ecoli_hi])))
+		print >> sys.stderr, "eligible reads for {0}: bowtie {1}, inhouse {2}".format(sample, \
+				len(eligible_bowtie), len(eligible_inhouse))
 		p = len(eligible_bowtie)*1./(len(eligible_bowtie)+len(eligible_inhouse))
 		for size in SUBSAMPLE_SIZES:
 			print >> sys.stderr, sample, size
@@ -100,8 +105,11 @@ def subsampling_BowTie_n_inhouse(file_iter, di_method):
 			df = Read.ReadDF(sample, refmap)
 			df.len = 520
 			df.assign_vec(seqvec)
+			df.add_annotation('size', size)
+			w.write(df)
 			di=runner.run(df, method=di_method, threshold=0, vec_pre_normalized=False, ignoreN=True)[valid_DI_pos]
 			print("{0},{1},{2}".format(sample,size,",".join(map(str,di))))
+	h.close()
 
 def random_seed_test(d='/mnt/silo/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/data/16S_090630/1411-1',\
 		pattern='1411-1.trimmedB2M30.bowtie_random_seed_*.aligned_out',\
@@ -131,6 +139,58 @@ def subsampling_files_sanity_check(file_pattern, sample_names, subsample_sizes):
 				if (sample, str(size)) not in seen:
 					print("file {0} is missing sample {1} for size {2}!!".format(file, sample, size))
 
+def jackknifing_tree_DF(file_pattern, di_method):
+	"""
+	Similar as jackknifing_tree but using DF files and
+	(probably improved clustering in clustering.py which I need manually turn on)
+	Run clustering and count the differences between subsampled and real trees
+	Returns: tree (size-->sample-->list of trees), symmetric_difference (size-->list of diffs),
+	         robinson_foulds_distance (size-->list of diffs)
+	"""
+	import numpy as np
+	from clustering import Cluster
+	import dendropy
+	dTree = lambda x: dendropy.Tree.get_from_string(x, "newick")
+	sizes = None
+	trees = {}
+	for file in glob.iglob(file_pattern):
+		print >> sys.stderr, "reading subsampled DF file {0}....".format(file)
+		d = {} # size --> list of dfs
+		with open(file) as f:
+			for df in DF.DFReader(f):
+				sample = df.name
+				size = df.annotations['size']
+				if size not in d:
+					d[size] = []
+				d[size].append(df)
+		return d
+		if sizes is None:
+			sizes = d.keys()
+			sizes.sort()
+		for size, df_list in d.iteritems():
+			c = Cluster(df_list, method=di_method, threshold=0)
+			c.run_till_end()
+			try:
+				trees[size].append(dTree(str(c.trees[0])))
+			except KeyError:
+				trees[size] = [dTree(str(c.trees[0]))]
+			print "size", size, "file", file
+			print c.trees[0]
+	# tally (1) symmetric differences (edge weight ignored)
+	# (2) robinson_foulds_distance (edge weight considered)
+	# 'real' is the size that is the full pool that we compare all other trees to
+	sym_diff = {}
+	rob_diff = {}
+	for size in sizes:
+		if size == 'real': continue
+		t_real = trees['real'][0]
+		sym_diff[size] = [t_real.symmetric_difference(t) for t in trees[size]]
+		rob_diff[size] = [t_real.robinson_foulds_distance(t) for t in trees[size]]
+
+	return trees, sym_diff, rob_diff
+
+def calculate_DI_rarefaction(file_pattern):
+	import numpy as np
 
 def jackknifing_tree(file_pattern, di_method):
 	"""
@@ -149,7 +209,7 @@ def jackknifing_tree(file_pattern, di_method):
 	sizes = None
 	trees = {}
 	for file in glob.iglob(file_pattern):
-		print >> sys.stderr, "reading subsamplined DI file {0}....".format(file)
+		print >> sys.stderr, "reading subsampled DI file {0}....".format(file)
 		d = {}
 		with open(file) as f:
 			for line in f:
@@ -240,9 +300,9 @@ def calculate_intra_n_iter_diffs(di_filename):
 if __name__ == "__main__":
 	file_iter = [(s,filename.format(s)) for s in SAMPLES] # for 14-individual
 	#subsampling_prepare_inhouse(file_iter)
-	#subsampling_BowTie_n_inhouse(file_iter, di_method='Simpson')
-	subsampling_files_sanity_check('useThisFlora/files/*removed', NEW_SAMPLES, SUBSAMPLE_SIZES+['real'])
-	#result = jackknifing_tree('useThisFlora/*v2_iter*', di_method='Simpson')
+	#subsampling_BowTie_n_inhouse(file_iter, di_method='Simpson', df_output=sys.argv[1])
+	#subsampling_files_sanity_check('useThisFlora/files/*removed', NEW_SAMPLES, SUBSAMPLE_SIZES+['real'])
+	result = jackknifing_tree_DF('temp_results/*.DF', di_method='Simpson')
 	#result = jackknifing_tree('/shared/silo_researcher/Lampe_J/Gut_Bugs/FH_Meredith/output/DI/preAssembly_DI_rarefactions/all14patients.Simpson.sampled_rarefaction.forMeredith/*iter*.txt', di_method='Simpson')
 	#result = jackknifing_tree('working_results/14illumina/subsampling_Entropy/*iter*txt*1412removed', di_method='Entropy')
 	#calculate_DI_rarefaction('useThisFlora/*v2_iter*1412removed')

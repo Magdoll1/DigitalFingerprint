@@ -13,6 +13,7 @@ class DF(SeqVector):
 		self.__seqvector = SeqVector(0, self.len, 0)
 		if vec is not None:
 			self.__seqvector.vec = vec
+		self.annotations = {}
 
 	def __add__(self, other):
 		"""
@@ -37,6 +38,9 @@ class DF(SeqVector):
 
 	def __getitem__(self, nt):
 		return self.__seqvector.vec[SeqVector.mapping[nt], :]
+
+	def add_annotation(self, k, v):
+		self.annotations[k] = v
 
 	def add_to_vec(self, nt, positions, counts):
 		"""
@@ -83,7 +87,10 @@ class DF(SeqVector):
 		return result
 
 	def normalized_vec(self, ignoreN=True):
-		self.__seqvector.vec = self.__seqvector.vec * 1. / self.get_compressed_vec(ignoreN)
+		p = self.get_compressed_vec(ignoreN)
+		for i in xrange(self.len):
+			p[i] = max(1, p[i])
+		self.__seqvector.vec = self.__seqvector.vec * 1. / p
 		# the code below was my feeble attempt to correct for the fact
 		# that now each positions counts may not add up to 1....*sigh*
 #		ind = SeqVector.mapping['A']
@@ -167,6 +174,21 @@ class DFReader:
 			# must add each of counts_vec[i] to positions[i] for the designated nucleotide
 			df.add_to_vec(nucleotide, positions, counts_vec)
 
+		# read the annotations if there are any
+		while True:
+			cur = self.f.tell()
+			line = self.f.readline().strip()
+			if len(line) == 0:
+				break
+			if line.startswith('#ANN='):
+				k = line[len('#ANN='):]
+				line = self.f.readline().strip()
+				assert(line.startswith('#ANN:'))
+				v = line[len('#ANN:'):]
+				df.add_annotation(k, v)
+			else:
+				self.f.seek(cur)
+				break
 		return df
 
 class DFWriter:
@@ -195,6 +217,10 @@ class DFWriter:
 			self.f.write(nucleotide + self.delimiter)
 			self.f.write(self.delimiter.join(str(df[nucleotide][i]) for i in positions))
 			self.f.write('\n')
+
+		for k, v in df.annotations.iteritems():
+			self.f.write("#ANN={0}\n".format(k))
+			self.f.write("#ANN:{0}\n".format(v))
 	
 	def writes(self, df_list):
 		for df in df_list:
