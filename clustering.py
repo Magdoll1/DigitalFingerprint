@@ -203,7 +203,7 @@ def main(args=None):
 	for df in df_list:
 		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
-	c = Cluster(df_list, method='Simpson', threshold=0)
+	c = Cluster(df_list, method='Entropy', threshold=0)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
