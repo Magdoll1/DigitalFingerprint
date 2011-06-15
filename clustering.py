@@ -178,9 +178,14 @@ def main(args=None):
 				ecoli_range[0], mask_lo, ecoli_range[1], mask_hi)
 	else:
 		from Solexa_settings import L2
-		ecoli_map = filter(lambda i: L2[i]%1==0 and 358 <= L2[i] <= 514, xrange(520))
-		mask[:] = 0.
-		mask[ecoli_map] = 1.
+		ecoli_map = filter(lambda i: L2[i]%1>=0 and 358 <= L2[i] <= 514, xrange(520))
+		import temp_utils
+		nzs = temp_utils.create_threshold_mask_for_df_list(df_list, 1000)
+		raw_input(nzs)
+		mask[:] = 0
+		mask[nzs] = 1.
+		#mask[:] = 0.
+		#mask[ecoli_map] = 1.
 
 #	mask[:6427] = 0. # remove all locations < E.coli 358 (which is 6427)
 #	mask[11895:] = 0. # remove all locations > E.coli 514 (which is 11894)
@@ -203,7 +208,7 @@ def main(args=None):
 	for df in df_list:
 		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
-	c = Cluster(df_list, method='Simpson', threshold=0)
+	c = Cluster(df_list, method='Entropy', threshold=0)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
