@@ -28,12 +28,11 @@ class Cluster:
 
 		self.X = np.zeros((self.m, self.n), dtype=np.float)
 		for i,df in enumerate(self.df_list):
-			print >> sys.stderr, "normalizing {0}....".format(df.name)
+			#print >> sys.stderr, "normalizing {0}....".format(df.name)
 			df.normalized_vec(ignoreN=True)
 			di = self.runner.run(df, method=self.method, threshold=self.threshold, \
 					vec_pre_normalized=True, ignoreN=True)
 			self.X[i, :] = di	
-#			print("self.X[{0}] is {1}".format(i, self.X[i]))
 
 		# calculate the initial distance matrix
 		self._dist = np.zeros((self.m, self.m), dtype=np.float)
@@ -89,7 +88,7 @@ class Cluster:
 		_min_val = self._dist[i, j]
 		if _min_val == float("inf"):
 			raise StopIteration, "done!"
-		print >> sys.stderr, "combining {0} and {1}".format(self.trees[i], self.trees[j])
+		#print >> sys.stderr, "combining {0} and {1}".format(self.trees[i], self.trees[j])
 		
 		# merge j into i
 		size_i = len(self.trees[i].get_leaves())
@@ -108,7 +107,6 @@ class Cluster:
 					vec_pre_normalized=True, ignoreN=True)
 #			print("merged {0} and {1}".format(i, j))
 #			print "new vec is now", self.X[i, ]
-#			raw_input("press to continue")
 		
 #		self._dist[j, :] = float("inf")
 #		self._dist[:, j] = float("inf")
@@ -122,16 +120,13 @@ class Cluster:
 			d = (self._dist[k, i] * size_i + self._dist[k, j] * size_j) / (size_i + size_j)
 			# method 4: complete linkage
 			#d = max(self._dist[k, i], self._dist[k, j])
-			print >> sys.stderr, "using Euclidean dist: {0}, using vecdiff: {1}".format(\
-					math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:])), d)
+			#print >> sys.stderr, "using Euclidean dist: {0}, using vecdiff: {1}".format(\
+			#		math.sqrt(sum(x**2 for x in self.X[i,:]-self.X[k,:])), d)
 			self._dist[i, k] = d
 			self._dist[k, i] = d
 		self._dist[j, :] = float("inf")
 		self._dist[:, j] = float("inf")
 
-#		print "dist is:",
-#		print self._dist
-#		raw_input("PRESS ANY KEY")
 	def run_till_end(self):
 		while len(self.trees) > 1:
 			try:
@@ -140,6 +135,7 @@ class Cluster:
 				break
 
 def main(args=None):
+	from DF import DFReader
 	import SILVA 
 	ecoli_map = SILVA.Ecoli1542_SILVA100
 	
@@ -147,18 +143,26 @@ def main(args=None):
 	parser = OptionParser(option_list=[ \
 			make_option("-f", "--df-filename", dest="df_filename"), \
 			make_option("-r", "--ecoli-range", dest="ecoli_range", help="specify the E.coli position range to use ex:(238,338)"), \
-			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all <len> positions"),\
+#			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all <len> positions"),\
 			make_option("-l", "--len", dest="aln_len", type=int, default=50000, help="alignment length (default 50000)"),\
-			make_option("-d", "--di-file", dest="di_filename", default=None, help="write out DI to file")
+			make_option("-i", "--index", dest="di_index", default="Entropy", help="use [Simpson|Entropy] index, default Entropy"),\
+			make_option("-d", "--di-file", dest="di_filename", default=None, help="write out DI to file"),\
+			make_option("-o", "--output", dest="tree_filename", default=sys.stderr, help="write out tree to file")
 			])
 
 	options, args = parser.parse_args(args=args)
 	if options.ecoli_range is not None:
 		ecoli_range = eval(options.ecoli_range)  # note: 1-based
 	
+	# HARD-CODE for E.coli-only
+	options.ecoli_only = True
+
+	if options.di_index not in ("Entropy", "Simpson"):
+		print >> sys.stderr, "-i (--index) must either be 'Entropy' or 'Simpson'. Abort!"
+		sys.exit(-1)
+	
 	print >> sys.stderr, "alignment length is", options.aln_len
 
-	from DF import DFReader
 	df_list = [df for df in DFReader(open(options.df_filename))]
 	print >> sys.stderr, "finished reading DF file", options.df_filename
 
@@ -167,7 +171,9 @@ def main(args=None):
 	if options.ecoli_only:
 		mask[SILVA.Ecoli1542_SILVA100] = 1. # this sets to using ONLY E.coli positions
 	else:
-		mask[:] = 1.
+		print("ONLY E.Coli positions allowed now. Abort!")
+		sys.exit(-1)
+#		mask[:] = 1.
 
 	if options.ecoli_only:
 		mask_lo = ecoli_map[ecoli_range[0]-1]
@@ -176,45 +182,32 @@ def main(args=None):
 		mask[mask_hi+1:] = 0.
 		print >> sys.stderr, "taking only positions from E.coli {0}({1})-{2}({3})".format(\
 				ecoli_range[0], mask_lo, ecoli_range[1], mask_hi)
-	else:
-		from Solexa_settings import L2
-		ecoli_map = filter(lambda i: L2[i]%1>=0 and 358 <= L2[i] <= 514, xrange(520))
-		import temp_utils
-		nzs = temp_utils.create_threshold_mask_for_df_list(df_list, 1000)
-		raw_input(nzs)
-		mask[:] = 0
-		mask[nzs] = 1.
-		#mask[:] = 0.
-		#mask[ecoli_map] = 1.
+#	else:
+#		from Solexa_settings import L2
+#		ecoli_map = filter(lambda i: L2[i]%1>=0 and 358 <= L2[i] <= 514, xrange(520))
+#		import temp_utils
+#		nzs = temp_utils.create_threshold_mask_for_df_list(df_list, 1000)
+#		raw_input(nzs)
+#		mask[:] = 0
+#		mask[nzs] = 1.
 
-#	mask[:6427] = 0. # remove all locations < E.coli 358 (which is 6427)
-#	mask[11895:] = 0. # remove all locations > E.coli 514 (which is 11894)
-#	mask[:27655] = 0. # remove all locations < E.coli 907
-#	mask[34343:] = 0. # remove all locations > E.coli 1073
-#	mask[6334:] = 0. # remove all locations > E.coli 338 (which is 6333)
-#	mask[:5280] = 0. # remove all locations < E.coli 238 (which is 5280)
-#	mask[5280:6334] = 1.
-#	mask[:3856] = 0. # remove all locations < E.coli 188 (which is 3856)
-#	mask[:2084] = 0. # remove all locations < E.coli 138 (which is 2084)
-#	mask[:13151] = 0. # remove all locations < E.coli 528 (which is 13151)
-#	mask[26145:] = 0. # remove all locations > E.coli 828 (which is 22059)
-#	mask[p] = 1.
-#	V2_ecoli_last200bp = mask.nonzero()[0] # this is Ecoli 238-338
-#	V6_ecoli = mask.nonzero()[0] # this is Ecoli 907-1073
-#	V3_ecoli = mask.nonzero()[0] # this is Ecoli 358-514
-#	V4_ecoli = mask.nonzero()[0] # this is Ecoli 528-828
-	V_ecoli = mask.nonzero()[0] # this is THE Ecoli mask
+	V_ecoli = mask.nonzero()[0] # this is the mask we will be using
 
 	for df in df_list:
 		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
-	c = Cluster(df_list, method='Entropy', threshold=0)
+	c = Cluster(df_list, method=options.di_index, threshold=0)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
 	c.run_till_end()
-	return c.trees[0]
+
+	t = c.trees[0]
+	with open(options.tree_filename, 'w') as f:
+		f.write(str(t) + '\n')
+	print >> sys.stderr, "output tree written to", options.tree_filename
+	return t
 
 if __name__ == "__main__":
-	print main()
+	main()
 

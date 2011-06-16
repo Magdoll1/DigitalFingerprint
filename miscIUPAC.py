@@ -1,52 +1,50 @@
-import os,re,sys
-from sets import ImmutableSet
-import itertools
+import os, sys, itertools
 
 IUPAC_RNA_MAP = \
-		{'N':ImmutableSet(['N']),\
-		'A':ImmutableSet(['A']),\
-		'U':ImmutableSet(['U']),\
-		'G':ImmutableSet(['G']),\
-		'C':ImmutableSet(['C']),\
-		'R':ImmutableSet(['A','G']),\
-		'Y':ImmutableSet(['C','U']),\
-		'S':ImmutableSet(['G','C']),\
-		'W':ImmutableSet(['A','U']),\
-		'K':ImmutableSet(['G','U']),\
-		'M':ImmutableSet(['A','C']),\
-		'B':ImmutableSet(['C','G','U']),\
-		'D':ImmutableSet(['A','G','U']),\
-		'H':ImmutableSet(['A','C','U']),\
-		'V':ImmutableSet(['A','C','G'])}
+		{'N':frozenset(['N']),\
+		'A':frozenset(['A']),\
+		'U':frozenset(['U']),\
+		'G':frozenset(['G']),\
+		'C':frozenset(['C']),\
+		'R':frozenset(['A','G']),\
+		'Y':frozenset(['C','U']),\
+		'S':frozenset(['G','C']),\
+		'W':frozenset(['A','U']),\
+		'K':frozenset(['G','U']),\
+		'M':frozenset(['A','C']),\
+		'B':frozenset(['C','G','U']),\
+		'D':frozenset(['A','G','U']),\
+		'H':frozenset(['A','C','U']),\
+		'V':frozenset(['A','C','G'])}
 
 IUPAC_DNA_MAP = \
-		{'N':ImmutableSet(['N']),\
-		'A':ImmutableSet(['A']),\
-		'T':ImmutableSet(['T']),\
-		'G':ImmutableSet(['G']),\
-		'C':ImmutableSet(['C']),\
-		'R':ImmutableSet(['A','G']),\
-		'Y':ImmutableSet(['C','T']),\
-		'S':ImmutableSet(['G','C']),\
-		'W':ImmutableSet(['A','T']),\
-		'K':ImmutableSet(['G','T']),\
-		'M':ImmutableSet(['A','C']),\
-		'B':ImmutableSet(['C','G','T']),\
-		'D':ImmutableSet(['A','G','T']),\
-		'H':ImmutableSet(['A','C','T']),\
-		'V':ImmutableSet(['A','C','G'])}
+		{'N':frozenset(['N']),\
+		'A':frozenset(['A']),\
+		'T':frozenset(['T']),\
+		'G':frozenset(['G']),\
+		'C':frozenset(['C']),\
+		'R':frozenset(['A','G']),\
+		'Y':frozenset(['C','T']),\
+		'S':frozenset(['G','C']),\
+		'W':frozenset(['A','T']),\
+		'K':frozenset(['G','T']),\
+		'M':frozenset(['A','C']),\
+		'B':frozenset(['C','G','T']),\
+		'D':frozenset(['A','G','T']),\
+		'H':frozenset(['A','C','T']),\
+		'V':frozenset(['A','C','G'])}
 
 IUPAC_RNA_MAP_rev = dict( [(y,x) for (x,y) in IUPAC_RNA_MAP.items()] )
-IUPAC_RNA_MAP_rev[ ImmutableSet(['A','C','U','G']) ] = 'N'
+IUPAC_RNA_MAP_rev[ frozenset(['A','C','U','G']) ] = 'N'
 IUPAC_DNA_MAP_rev = dict( [(y,x) for (x,y) in IUPAC_DNA_MAP.items()] )
-IUPAC_DNA_MAP_rev[ ImmutableSet(['A','C','T','G']) ] = 'N'
+IUPAC_DNA_MAP_rev[ frozenset(['A','C','T','G']) ] = 'N'
 
 def get_IUPAC_RNA_code(nts):
 	if 'N' in nts:
 		nts.remove('N')
 	if len(nts) == 0:
 		return 'N'
-	joined = reduce(lambda acc,nt: IUPAC_RNA_MAP[nt].union(acc), nts, ImmutableSet())
+	joined = reduce(lambda acc,nt: IUPAC_RNA_MAP[nt].union(acc), nts, frozenset())
 	return IUPAC_RNA_MAP_rev[ joined ]
 
 def get_IUPAC_DNA_code(nts):
@@ -54,7 +52,7 @@ def get_IUPAC_DNA_code(nts):
 		nts.remove('N')
 	if len(nts) == 0:
 		return 'N'
-	joined = reduce(lambda acc,nt: IUPAC_DNA_MAP[nt].union(acc), nts, ImmutableSet())
+	joined = reduce(lambda acc,nt: IUPAC_DNA_MAP[nt].union(acc), nts, frozenset())
 	return IUPAC_DNA_MAP_rev[ joined ]
 
 def can_pair(x, y):
