@@ -1,1 +1,3 @@
 python clustering.py -f testsuite/DAR_HCT_Bv3.renamed_curated.DF -d testsuite/DAR_HCT_Bv3.renamed_curated.Entropy.DI.txt -o testsuite/DAR_HCT_Bv3.renamed_curated.Entropy.tree -r 360,500
+
+python clustering.py -f testsuite/DAR_HCT_Bv3.renamed_curated.onlyEcoli.DF -a -l 141 -d testsuite/DAR_HCT_Bv3.renamed_curated.onlyEcoli.DI.txt -o testsuite/DAR_HCT_Bv3.renamed_curated.onlyEcoli.Entropy.tree

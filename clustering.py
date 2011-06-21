@@ -142,8 +142,8 @@ def main(args=None):
 	from optparse import make_option, OptionParser
 	parser = OptionParser(option_list=[ \
 			make_option("-f", "--df-filename", dest="df_filename"), \
-			make_option("-r", "--ecoli-range", dest="ecoli_range", help="specify the E.coli position range to use ex:(238,338)"), \
-#			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all <len> positions"),\
+			make_option("-r", "--ecoli-range", dest="ecoli_range", help="specify the (1-based) E.coli position range to use ex: -r 200,300"), \
+			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all <len> positions, ignore ecoli range"),\
 			make_option("-l", "--len", dest="aln_len", type=int, default=50000, help="alignment length (default 50000)"),\
 			make_option("-i", "--index", dest="di_index", default="Entropy", help="use [Simpson|Entropy] index, default Entropy"),\
 			make_option("-d", "--di-file", dest="di_filename", default=None, help="write out DI to file"),\
@@ -154,9 +154,6 @@ def main(args=None):
 	if options.ecoli_range is not None:
 		ecoli_range = eval(options.ecoli_range)  # note: 1-based
 	
-	# HARD-CODE for E.coli-only
-	options.ecoli_only = True
-
 	if options.di_index not in ("Entropy", "Simpson"):
 		print >> sys.stderr, "-i (--index) must either be 'Entropy' or 'Simpson'. Abort!"
 		sys.exit(-1)
@@ -171,11 +168,10 @@ def main(args=None):
 	if options.ecoli_only:
 		mask[SILVA.Ecoli1542_SILVA100] = 1. # this sets to using ONLY E.coli positions
 	else:
-		print("ONLY E.Coli positions allowed now. Abort!")
-		sys.exit(-1)
-#		mask[:] = 1.
+		print >> sys.stderr, "Using all positions. Ignore ecoli range."
+		mask[:] = 1.
 
-	if options.ecoli_only:
+	if options.ecoli_only: 
 		mask_lo = ecoli_map[ecoli_range[0]-1]
 		mask_hi = ecoli_map[ecoli_range[1]-1]
 		mask[:mask_lo] = 0.
