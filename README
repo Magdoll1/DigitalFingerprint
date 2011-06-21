@@ -1,7 +1,34 @@
 
+================================================================
+ Prerequisites
+================================================================
+ To run the Digital Fingerprint (DF) package, you need:
+
+ 1. Python 2.6 or 2.7 (tested on version 2.6)
+    http://python.org
+
+ 2. Numpy (tested on version 1.5.0b1)
+    http://www.scipy.org/Download
+
+ 
+================================================================
+ Running Digital Fingerprinting on Pyrosequence: an example
+================================================================
+
+The directory testsuite/ contains a bash script runDFforPyro.sh
+ which will run through an example of running Digital Fingerprinting
+ on a mock pyrosequencing dataset. The pyrosequencing fasta files
+ are under directory testsuite/16Spyro_28F_200seq/.
+
+To run the testset, type:
+
+				bash runDFforPyro.sh
+
+The following sections explain the steps taken by the bash script.
+
 
 ================================================================
- Align pyrosequences an alignment
+ Align pyrosequences to a reference alignment
 ================================================================
 
 For pyrosequencing, we use the 50,000 bp bacterial 16S rRNA
@@ -15,7 +42,8 @@ You can use Mothur's aligner or any aligner to align the pyrosequences
  to the reference alignment. For example, using Mothur the command
  line would be:
 
-mothur > align.seqs(candidate=<sequence filename>, template=silva.bacteria.fasta)
+				mothur > align.seqs(candidate=<sequence filename>, \
+									template=silva.bacteria.fasta)
 
 This should generate alignment fasta files with the suffix .align.
 
@@ -28,7 +56,7 @@ To process the aligned fasta files into DF format which can then
  be used to run clustering on, use the python script Pyro.py as
  below:
 
-python Pyro.py -p <filename or pattern> -o <output DF filename>
+				python Pyro.py -p <filename or pattern> -o <output DF filename>
 
 Each file should be an alignment file (ex: .align file from running Mothur)
  that contains aligned sequences for a single sample. You can either
@@ -36,8 +64,8 @@ Each file should be an alignment file (ex: .align file from running Mothur)
  the output .DF files later into a single .DF file, or you can use file
  pattern matching, for example:
 
-python Pyro.py -p testsuite/16Spyro_28F_200seq/*.align \
-  -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
+				python Pyro.py -p testsuite/16Spyro_28F_200seq/*.align \
+					  -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
 
 This would process all .align files in the directory testsuite/16Spyro_28F_200seq/
  and output each sample's Digital Fingerprint collectively in the output
@@ -56,12 +84,13 @@ If you are unsure of the sequence coverage and want an estimate of
  what range of E.coli positions to use for clustering, use 
  the get_coverage_from_DF.py script in the scripts/ directory:
 
-python get_coverage_from_DF.py <DF filename>
+				python get_coverage_from_DF.py <DF filename>
 
 
 For example, running:
 
-python scripts/get_coverage_from_DF.py testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
+				python scripts/get_coverage_from_DF.py \
+					testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
 
  would generate a file called 16Spyro_28F_200seq.DF.Ecoli_coverage.txt in the same
  directory as the .DF file that shows you the number of nucleotide coverage
