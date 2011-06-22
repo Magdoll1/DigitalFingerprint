@@ -10,6 +10,12 @@
  2. Numpy (tested on version 1.5.0b1)
     http://www.scipy.org/Download
 
+ 3. (optional) Mothur or any aligner for pyrosequencing
+    http://www.mothur.org/
+
+ 4. (optional) BowTie or any short reads aligner for Illumina reads
+    http://bowtie-bio.sourceforge.net/
+
  
 ================================================================
  Running Digital Fingerprinting on Pyrosequence: an example
@@ -22,7 +28,8 @@ The directory testsuite/ contains a bash script runDFforPyro.sh
 
 To run the testset, type:
 
-				bash runDFforPyro.sh
+	cd testsuite/
+	bash runDFforPyro.sh
 
 The following sections explain the steps taken by the bash script.
 
@@ -42,8 +49,8 @@ You can use Mothur's aligner or any aligner to align the pyrosequences
  to the reference alignment. For example, using Mothur the command
  line would be:
 
-				mothur > align.seqs(candidate=<sequence filename>, \
-									template=silva.bacteria.fasta)
+	mothur > align.seqs(candidate=<sequence filename>, \
+						template=silva.bacteria.fasta)
 
 This should generate alignment fasta files with the suffix .align.
 
@@ -56,7 +63,7 @@ To process the aligned fasta files into DF format which can then
  be used to run clustering on, use the python script Pyro.py as
  below:
 
-				python Pyro.py -p <filename or pattern> -o <output DF filename>
+	python Pyro.py -p <filename or pattern> -o <output DF filename>
 
 Each file should be an alignment file (ex: .align file from running Mothur)
  that contains aligned sequences for a single sample. You can either
@@ -64,8 +71,8 @@ Each file should be an alignment file (ex: .align file from running Mothur)
  the output .DF files later into a single .DF file, or you can use file
  pattern matching, for example:
 
-				python Pyro.py -p testsuite/16Spyro_28F_200seq/*.align \
-					  -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
+	python Pyro.py -p testsuite/16Spyro_28F_200seq/*.align \
+				  -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
 
 This would process all .align files in the directory testsuite/16Spyro_28F_200seq/
  and output each sample's Digital Fingerprint collectively in the output
@@ -84,13 +91,12 @@ If you are unsure of the sequence coverage and want an estimate of
  what range of E.coli positions to use for clustering, use 
  the get_coverage_from_DF.py script in the scripts/ directory:
 
-				python get_coverage_from_DF.py <DF filename>
+	python get_coverage_from_DF.py <DF filename>
 
 
 For example, running:
 
-				python scripts/get_coverage_from_DF.py \
-					testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
+	python scripts/get_coverage_from_DF.py testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
 
  would generate a file called 16Spyro_28F_200seq.DF.Ecoli_coverage.txt in the same
  directory as the .DF file that shows you the number of nucleotide coverage
@@ -115,12 +121,54 @@ To run clustering on DF (Digital Fingerprinting) files, use the clustering.py
 For example, to cluster the pyrosequencing DF file we've just generated using
  the recommended E.coli range 20-342:
 
-python clustering.py -f testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF \
-                     -r 20,342 \
-                     -i Simpson \
-                     -d testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.DI.txt \
-                     -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.tree
+	python clustering.py -f testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF \
+    	                 -r 20,342 \
+        	             -i Simpson \
+            	         -d testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.DI.txt \
+                	     -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.tree
 
  
 The output tree file will be written in newick format.
+
+
+================================================================
+ Running Digital Fingerprinting on Illumina: an example
+================================================================
+
+Similar to the pyrosequencing, for Illumina sequencing, you need to first
+ align the reads to a reference alignment then process that into a DF format.
+
+A similar example bash script runs the processing and clustering of
+ 3 mock Illumina samples in testsuite/16Sillumina_QinTest/. To run, type:
+
+	cd testsuite/
+	bash runDFforIllumina.sh
+
+Details for what the bash script does are described below.
+
+================================================================
+ Running Digital Fingerprinting on Illumina: howto
+================================================================
+
+Here's an example script that processes BowTie output files:
+
+	python Read_processbowtie.py -p <filename or pattern> -o <output DF filename>
+
+ the script assumes that you've aligned the reads to a reference alignment
+ file called Silva/SILVA104.fece_augmented.fasta and that
+ SILVA104.fece_augmented.fasta.gap_map.bz2 is the bzipped
+ file that for each line contains:
+
+		<reference sequence ID>,<comma-delimited, (0-based) position of the
+             1st, 2nd, 3rd.....i-th nucleotide of the reference sequence
+             in the SILVA 50,000-bp alignment>
+
+If you have your own reference alignment, then you must create a gap map
+ file and specify it in the parameters along with the reference alignment length:
+
+	python Read_processbowtie.py -p <filename or pattern> -o <output DF filename> \
+					-r <reference gap map filename> -l <alignment length>
+
+Now with the DF file, you can again run the clustering file to get the clustered tree.
+
 

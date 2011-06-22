@@ -4,7 +4,6 @@ from collections import defaultdict, namedtuple, deque
 from cPickle import *
 
 import numpy as np
-import networkx as nx
 
 from Bio import SeqIO
 from Bio.Seq import Seq, MutableSeq
