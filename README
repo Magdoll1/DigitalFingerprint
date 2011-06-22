@@ -171,4 +171,12 @@ If you have your own reference alignment, then you must create a gap map
 
 Now with the DF file, you can again run the clustering file to get the clustered tree.
 
+In this example, we use the E.coli range 641-1356 with the Entropy Index:
+
+python clustering.py -f testsuite/16Sillumina_QinTest/16Sillumina_QinTest.DF \
+                     -r 641,1356 \
+                     -i Entropy \
+                     -d testsuite/16Sillumina_QinTest/16Sillumina_QinTest.Entropy641to1356.DI.txt \
+                     -o testsuite/16Sillumina_QinTest/16Sillumina_QinTest.Entropy641to1456.tree
+
 
