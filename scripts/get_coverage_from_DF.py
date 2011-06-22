@@ -1,9 +1,6 @@
 import os,sys
-DF_DIR = '../' # directory containing the Digital Fingerprint python package
-sys.path.append(DF_DIR)
-
-from DF import DFReader
-from SILVA import Ecoli1542_SILVA100 as ecoli
+from DigitalFingerprint.DF import DFReader
+from DigitalFingerprint.SILVA import Ecoli1542_SILVA100 as ecoli
 
 
 def main(df_filename):

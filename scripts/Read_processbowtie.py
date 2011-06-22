@@ -1,12 +1,10 @@
 import os, sys, glob
-import Read
-from DF import DFWriter
+from DigitalFingerprint import Read
+from DigitalFingerprint.DF import DFWriter
 from optparse import OptionParser
 
-from utils import versatile_open
+from DigitalFingerprint.utils import versatile_open
 open = versatile_open.versatile_open
-
-DF_DIR = os.path.dirname(sys.argv[0])
 
 parser = OptionParser()
 parser.add_option("-p", "--pattern", dest="pattern", help="pattern for list of input files")
@@ -25,7 +23,7 @@ if pattern is None or output_df_filename is None:
 
 print >> sys.stderr, "Reading RefMap....this may take a while"
 if options.ref_gap_map is None:
-	refmap = Read.RefMap(os.path.join(DF_DIR,'Silva/SILVA104.fece_augmented.fasta.gap_map.bz2'), aln_length=50000)
+	refmap = Read.RefMap('../data/SILVA104.fece_augmented.fasta.gap_map.bz2', aln_length=50000)
 else:
 	refmap = Read.RefMap(options.ref_gap_map, options.ref_aln_len)
 

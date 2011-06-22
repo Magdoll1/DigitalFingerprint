@@ -61,9 +61,9 @@ This should generate alignment fasta files with the suffix .align.
 
 To process the aligned fasta files into DF format which can then
  be used to run clustering on, use the python script Pyro.py as
- below:
+ below (assuming you're in testsuite/ directory):
 
-	python Pyro.py -p <filename or pattern> -o <output DF filename>
+	python ../scripts/Pyro_process.py -p <filename or pattern> -o <output DF filename>
 
 Each file should be an alignment file (ex: .align file from running Mothur)
  that contains aligned sequences for a single sample. You can either
@@ -71,12 +71,12 @@ Each file should be an alignment file (ex: .align file from running Mothur)
  the output .DF files later into a single .DF file, or you can use file
  pattern matching, for example:
 
-	python Pyro.py -p testsuite/16Spyro_28F_200seq/*.align \
-				  -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
+	python ../scripts/Pyro_process.py -p 16Spyro_28F_200seq/*.align \
+				  -o 16Spyro_28F_200seq/16Spyro_28F_200seq.DF
 
-This would process all .align files in the directory testsuite/16Spyro_28F_200seq/
+This would process all .align files in the directory 16Spyro_28F_200seq/
  and output each sample's Digital Fingerprint collectively in the output
- file testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF.
+ file 16Spyro_28F_200seq/16Spyro_28F_200seq.DF.
 
 
 ================================================================
@@ -91,12 +91,12 @@ If you are unsure of the sequence coverage and want an estimate of
  what range of E.coli positions to use for clustering, use 
  the get_coverage_from_DF.py script in the scripts/ directory:
 
-	python get_coverage_from_DF.py <DF filename>
+	python ../scripts/get_coverage_from_DF.py <DF filename>
 
 
 For example, running:
 
-	python scripts/get_coverage_from_DF.py testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF
+	python ../scripts/get_coverage_from_DF.py 16Spyro_28F_200seq/16Spyro_28F_200seq.DF
 
  would generate a file called 16Spyro_28F_200seq.DF.Ecoli_coverage.txt in the same
  directory as the .DF file that shows you the number of nucleotide coverage
@@ -109,8 +109,8 @@ For example, running:
  Running clustering on DF files
 ================================================================
 
-To run clustering on DF (Digital Fingerprinting) files, use the clustering.py
- script and specify the following:
+To run clustering on DF (Digital Fingerprinting) files, use run_clustering.py
+ in scripts/ and specify the following:
 
  -f <filename> , which must be a DF format file containing the DF of one or more samples
  -r <E.coli range>, the (1-based) range of E.coli positions to use for clustering, ex: -r 20,342
@@ -121,11 +121,11 @@ To run clustering on DF (Digital Fingerprinting) files, use the clustering.py
 For example, to cluster the pyrosequencing DF file we've just generated using
  the recommended E.coli range 20-342:
 
-	python clustering.py -f testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.DF \
+	python ../scripts/run_clustering.py -f 16Spyro_28F_200seq/16Spyro_28F_200seq.DF \
     	                 -r 20,342 \
         	             -i Simpson \
-            	         -d testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.DI.txt \
-                	     -o testsuite/16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.tree
+            	         -d 16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.DI.txt \
+                	     -o 16Spyro_28F_200seq/16Spyro_28F_200seq.Simpson20to342.tree
 
  
 The output tree file will be written in newick format.
@@ -150,12 +150,12 @@ Details for what the bash script does are described below.
  Running Digital Fingerprinting on Illumina: howto
 ================================================================
 
-Here's an example script that processes BowTie output files:
+Here's the script that processes BowTie output files:
 
-	python Read_processbowtie.py -p <filename or pattern> -o <output DF filename>
+	python ../scripts/Read_processbowtie.py -p <filename or pattern> -o <output DF filename>
 
  the script assumes that you've aligned the reads to a reference alignment
- file called Silva/SILVA104.fece_augmented.fasta and that
+ file called SILVA104.fece_augmented.fasta and that
  SILVA104.fece_augmented.fasta.gap_map.bz2 is the bzipped
  file that for each line contains:
 
@@ -163,20 +163,23 @@ Here's an example script that processes BowTie output files:
              1st, 2nd, 3rd.....i-th nucleotide of the reference sequence
              in the SILVA 50,000-bp alignment>
 
+The .gap_map.bz2 file should be in the data/ directory. If not, you can 
+specify it with the -r parameter (see below).
+
 If you have your own reference alignment, then you must create a gap map
  file and specify it in the parameters along with the reference alignment length:
 
-	python Read_processbowtie.py -p <filename or pattern> -o <output DF filename> \
+	python ../scripts/Read_processbowtie.py -p <filename or pattern> -o <output DF filename> \
 					-r <reference gap map filename> -l <alignment length>
 
 Now with the DF file, you can again run the clustering file to get the clustered tree.
 
 In this example, we use the E.coli range 641-1356 with the Entropy Index:
 
-python clustering.py -f testsuite/16Sillumina_QinTest/16Sillumina_QinTest.DF \
+python ../scripts/run_clustering.py -f 16Sillumina_QinTest/16Sillumina_QinTest.DF \
                      -r 641,1356 \
                      -i Entropy \
-                     -d testsuite/16Sillumina_QinTest/16Sillumina_QinTest.Entropy641to1356.DI.txt \
-                     -o testsuite/16Sillumina_QinTest/16Sillumina_QinTest.Entropy641to1456.tree
+                     -d 16Sillumina_QinTest/16Sillumina_QinTest.Entropy641to1356.DI.txt \
+                     -o 16Sillumina_QinTest/16Sillumina_QinTest.Entropy641to1456.tree
 
 
