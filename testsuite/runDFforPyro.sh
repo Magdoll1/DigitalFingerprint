@@ -13,10 +13,10 @@ fi
 
 if [ -d $INPUT_DIR ]; then
 	base=`basename $INPUT_DIR`
-#	for FILE in `ls $base/*.fna`
-##	do 
-#		mothur "#align.seqs(candidate=$FILE, template=$REF_FILE, processors=4, flip=F)"
-#	done
+	for FILE in `ls $base/*.fna`
+	do 
+		mothur "#align.seqs(candidate=$FILE, template=$REF_FILE, processors=4, flip=F)"
+	done
 	python $script_DIR/Pyro_process.py -p "$base/*.align" --dup-ok -o $base/$base.DF
 	echo "DF file written to $base/$base.DF"
 	echo "Already know recommended E.coli range is 20-342. Running clustering...."
