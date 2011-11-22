@@ -144,6 +144,7 @@ def main(args=None):
 			make_option("-f", "--df-filename", dest="df_filename"), \
 			make_option("-r", "--ecoli-range", dest="ecoli_range", help="specify the (1-based) E.coli position range to use ex: -r 200,300"), \
 			make_option("-a", "--all-positions", dest="ecoli_only", action="store_false", default=True, help="use all <len> positions, ignore ecoli range"),\
+			make_option("-t", "--threshold", dest="threshold", type=int, help="threshold count for position"),\
 			make_option("-l", "--len", dest="aln_len", type=int, default=50000, help="alignment length (default 50000)"),\
 			make_option("-i", "--index", dest="di_index", default="Entropy", help="use [Simpson|Entropy] index, default Entropy"),\
 			make_option("-d", "--di-file", dest="di_filename", default=None, help="write out DI to file"),\
@@ -156,6 +157,10 @@ def main(args=None):
 	
 	if options.di_index not in ("Entropy", "Simpson"):
 		print >> sys.stderr, "-i (--index) must either be 'Entropy' or 'Simpson'. Abort!"
+		sys.exit(-1)
+
+	if options.threshold < 0:
+		print >> sys.stderr, "-t (--threshold) must be > 0!"
 		sys.exit(-1)
 	
 	print >> sys.stderr, "alignment length is", options.aln_len
@@ -178,11 +183,14 @@ def main(args=None):
 		mask[mask_hi+1:] = 0.
 		print >> sys.stderr, "taking only positions from E.coli {0}({1})-{2}({3})".format(\
 				ecoli_range[0], mask_lo, ecoli_range[1], mask_hi)
-#	else:
-#		from Solexa_settings import L2
-#		ecoli_map = filter(lambda i: L2[i]%1>=0 and 358 <= L2[i] <= 514, xrange(520))
-#		import temp_utils
-#		nzs = temp_utils.create_threshold_mask_for_df_list(df_list, 1000)
+	else:
+		from Solexa_settings import L2
+		ecoli_map = filter(lambda i: L2[i]%1>=0 and 358 <= L2[i] <= 514, xrange(520))
+		mask[:] = 0
+		mask[ecoli_map] = 1.
+		print ecoli_map
+		raw_input("abc")
+#		nzs = temp_utils.create_threshold_mask_for_df_list(df_list, 10)
 #		raw_input(nzs)
 #		mask[:] = 0
 #		mask[nzs] = 1.
@@ -192,7 +200,7 @@ def main(args=None):
 	for df in df_list:
 		#print >> sys.stderr, "changing vec mask for", df.name
 		df.change_vec_mask(V_ecoli)
-	c = Cluster(df_list, method=options.di_index, threshold=0)
+	c = Cluster(df_list, method=options.di_index, threshold=options.threshold)
 	if options.di_filename is not None:
 		print >> sys.stderr, "writing DI to", options.di_filename
 		c.write_DI(options.di_filename)
