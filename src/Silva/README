@@ -1,0 +1,7 @@
+
+++ SILVA104.fece_augmented.fasta.gap_map.bz2
+     is what I'm using as refDB (full 50,000 bp) nowaways
+
+++ SILVA100_justHumanCrap.1crap_masked.V3region*
+     is what I used for the 14-individual V3 Illumina sequencing
+     I need it here for legacy issues with the 14-individual data

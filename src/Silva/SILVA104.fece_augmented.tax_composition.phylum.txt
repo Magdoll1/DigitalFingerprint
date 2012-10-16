@@ -1,0 +1,31 @@
+Verrucomicrobia	1175
+Parabasalia	2
+Bacteroidetes	18102
+stramenopiles	11
+Elusimicrobia	7
+Actinobacteria	2339
+Deferribacteres	26
+RF3	19
+Cyanobacteria	188
+Lentisphaerae	333
+Deinococcus-Thermus	1
+Candidate division TM7	33
+Proteobacteria	3650
+Spirochaetes	160
+environmental samples	58
+Firmicutes	60312
+Chloroflexi	6
+Amoebozoa	12
+Fungi	3
+Planctomycetes	10
+Fusobacteria	321
+Synergistetes	25
+Candidate division SR1	2
+Crenarchaeota	1
+Alveolata	85
+Chlamydiae	2
+Candidate division OP11	1
+Candidate division OP10	2
+Tenericutes	517
+Fibrobacteres	64
+Euryarchaeota	28

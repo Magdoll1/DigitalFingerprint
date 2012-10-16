@@ -1,0 +1,13 @@
+	66
+Balantidium	2
+Parentodinium	1
+uncultured	6
+Cycloposthium	1
+Blepharocorys	2
+Sordariomycetes	1
+Troglodytella	8
+Dipodascaceae	1
+Spirodinium	1
+Bundleia	3
+Polydiniella	1
+Triadinium	2
